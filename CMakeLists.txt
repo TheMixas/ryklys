@@ -9,7 +9,6 @@ add_executable(ryklys_backend main.cpp
         zvejys-rest-api/HttpConnection.h
         zvejys-rest-api/HttpRequest.h
         zvejys-rest-api/HttpResponse.h
-        zvejys-rest-api/include/trie.h
         zvejys-rest-api/HttpMethod.h
         zvejys-rest-api/RouteNode.h
         pg-connection-pool/pgPool.cpp

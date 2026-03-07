@@ -49,7 +49,7 @@ void ZvejysServer::Start() {
 
 void ZvejysServer::RegisterRoute(HttpMethod httpMethod, std::string path, HttpHandler handler) {
     RouteNode handlerNode(httpMethod, handler);
-    route_map_.insert(path, handlerNode);
+    route_map_.insert(std::make_pair<>(std::move(path), std::move(handlerNode)));
 }
 
 int ZvejysServer::HandleEpollNewConnection(int epollFD, epoll_event event) {

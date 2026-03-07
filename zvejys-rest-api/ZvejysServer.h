@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <memory>
 #include "./include/trie.h"
+#include "./include/PhamPhiLong_Radix-Tree/radix_tree.h"
 #include "HttpRequest.h"
 #include "HttpResponse.h"
 #include "RouteNode.h"
@@ -31,7 +32,8 @@ class ZvejysServer {
 
     using WsHandlerSetup = std::function<void(WebSocketConnection &)>;
     using HttpHandler = std::function<HttpResponse(const HttpRequest &)>;
-    typedef trie::trie_map<char, RouteNode> RouteMap;
+    typedef phamphilong:: radix_tree<std::string, RouteNode> RouteRadixTree;
+    //typedef trie::trie_map<char, RouteNode> RouteRadixTree;
 
 public:
     ZvejysServer(std::string host, int port) {
@@ -56,7 +58,7 @@ public:
 
     int HandleEpollSendClientData(int epollFD, epoll_event event);
 
-    RouteMap GetRouteMap() const {
+    const RouteRadixTree& GetRouteMap() const {
         return route_map_;
     }
 
@@ -105,7 +107,7 @@ private:
 
     sockaddr_in server_address;
 
-    RouteMap route_map_;
+    RouteRadixTree route_map_;
 
     void CreateTCPSocket();
 

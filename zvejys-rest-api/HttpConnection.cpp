@@ -55,7 +55,8 @@ void HttpConnection::OnReadable(int epollFD) {
     //Look up at the MapRouting
     auto handler_it = GetServer()->GetRouteMap().find(request.path);
     if (handler_it != GetServer()->GetRouteMap().end()) {
-        response = handler_it.value().handler(request);
+        // response = handler_it.value().handler(request);
+        response = handler_it->second.handler(request);
     } else {
         // If no handler found, send a 404 response
         response.status_code = 404;

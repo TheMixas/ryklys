@@ -40,6 +40,17 @@ void RegisterRoutes(ZvejysServer &server) {
 
         return response;
     });
+    server.RegisterRoute(HttpMethod::GET, "/2s", [](const HttpRequest &request) -> HttpResponse {
+    std::cout << "I am handling a 5s" << std::endl;
+
+    sleep(2);
+
+    HttpResponse response;
+    response.status_code = 200;
+    response.body = std::vector<char>{'2', 's', ' ', ':', ')'};
+
+    return response;
+});
     // server.RegisterRoute(HttpMethod::GET, "/hello", [](const HttpRequest &request) -> HttpResponse {
     //     std::cout << "I am handling a request to /hello" << (&dbPool) << std::endl;
     //
@@ -60,9 +71,9 @@ void RegisterRoutes(ZvejysServer &server) {
     // });
 
     // WebSocket echo handler
-    server.RegisterWebSocketRoute("/ws", [](WebSocketConnection& ws) {
-        ws.SetOnMessage([](WebSocketConnection& conn,
-                           const std::vector<uint8_t>& data,
+    server.RegisterWebSocketRoute("/ws", [](WebSocketConnection &ws) {
+        ws.SetOnMessage([](WebSocketConnection &conn,
+                           const std::vector<uint8_t> &data,
                            WsOpcode opcode) {
             // Echo back whatever we receive
             if (opcode == WsOpcode::TEXT) {
@@ -74,9 +85,30 @@ void RegisterRoutes(ZvejysServer &server) {
             }
         });
 
-        ws.SetOnClose([](WebSocketConnection& conn,
+        ws.SetOnClose([](WebSocketConnection &conn,
                          uint16_t code,
-                         const std::string& reason) {
+                         const std::string &reason) {
+            std::cout << "WS closed: " << code << " " << reason << std::endl;
+        });
+    });
+
+    server.RegisterWebSocketRoute("/ws2", [](WebSocketConnection &ws) {
+        ws.SetOnMessage([](WebSocketConnection &conn,
+                           const std::vector<uint8_t> &data,
+                           WsOpcode opcode) {
+            // Echo back whatever we receive
+            if (opcode == WsOpcode::TEXT) {
+                std::string msg(data.begin(), data.end());
+                std::cout << "WS received: " << msg << std::endl;
+                conn.SendText("Echo2: " + msg);
+            } else {
+                conn.SendBinary(data);
+            }
+        });
+
+        ws.SetOnClose([](WebSocketConnection &conn,
+                         uint16_t code,
+                         const std::string &reason) {
             std::cout << "WS closed: " << code << " " << reason << std::endl;
         });
     });
@@ -93,7 +125,6 @@ int main() {
 
         sleep(5);
         std::cout << "I finished handling a 5s 2" << std::endl;
-
     });
     std::cout << "Hello, World!" << std::endl;
     ZvejysServer httpServer("127.0.0.1", 8080);
@@ -103,7 +134,7 @@ int main() {
     std::cout << "I  have routes: " << httpServer.GetRouteMap().size() << std::endl;
     std::cout << "Routes: " << std::endl;
     for (auto route = httpServer.GetRouteMap().begin(); route != httpServer.GetRouteMap().end(); ++route) {
-        std::cout << route.key() << std::endl;
+        std::cout << route->first << std::endl;
     }
 
     int epoll_fd = CreateEpoll();
@@ -123,7 +154,7 @@ int main() {
                 httpServer.HandleEpollNewConnection(epoll_fd, event);
                 std::cout << "I just accepted a new connection" << std::endl;
             } else {
-                auto conn = static_cast<Connection*>(event.data.ptr);
+                auto conn = static_cast<Connection *>(event.data.ptr);
                 if (event.events & EPOLLIN) {
                     pool.enqueue_detach([conn, epoll_fd]() {
                         conn->OnReadable(epoll_fd);
