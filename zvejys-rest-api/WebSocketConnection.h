@@ -72,9 +72,6 @@ public:
         QueueFrame(frame);
     }
 
-    // --- Called by the epoll event loop ---
-
-    // Called when EPOLLIN fires on an upgraded WebSocket connection.
     // Reads raw bytes, feeds them to the frame parser, dispatches callbacks.
     void OnReadable(int epollFD) override {
         // Read available data from socket into read_buffer_
@@ -88,7 +85,7 @@ public:
                 state_ = WsState::CLOSED;
                 return;
             } else {
-                if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+                if (errno == EAGAIN || errno == EWOULDBLOCK) break; // No more data for now
                 perror("WebSocketConnection::HandleRead");
                 return;
             }
@@ -211,7 +208,7 @@ private:
 
     void ArmForWrite(int epollFD) {
         epoll_event ev{};
-        ev.data.ptr = this; // NOTE: you'll need a way to distinguish this from HttpConnection*
+        ev.data.ptr = this;
         ev.events = EPOLLOUT | EPOLLET;
         epoll_ctl(epollFD, EPOLL_CTL_MOD, socket_fd_, &ev);
     }

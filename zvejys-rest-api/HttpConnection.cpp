@@ -47,10 +47,10 @@ void HttpConnection::OnReadable(int epollFD) {
         // ─── UPGRADE: Replace this HttpConnection with a WebSocketConnection ───
         // Tell the server to perform the swap
         GetServer()->UpgradeToWebSocket(GetSocketFD(), epollFD, request.path);
-        return; // This HttpConnection will be destroyed by the server
+        return; // This HttpConnection will be destroyed by the server, replaced with a WebSocketConnection
     }
 
-
+    //Handle regular http request
     HttpResponse response;
     //Look up at the MapRouting
     auto handler_it = GetServer()->GetRouteMap().find(request.path);

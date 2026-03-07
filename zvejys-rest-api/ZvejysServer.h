@@ -87,10 +87,10 @@ public:
             it->second(*ws_conn);
         }
 
-        // Store with a tagged wrapper
+
         ws_connections_[fd] = std::move(ws_conn);
 
-        // Re-register with epoll, pointing to our tagged wrapper
+        // Re-register with epoll, pointing to our new WebSocketConnection
         epoll_event ev{};
         ev.data.ptr = ws_connections_[fd].get();
         ev.events = EPOLLIN | EPOLLET;
