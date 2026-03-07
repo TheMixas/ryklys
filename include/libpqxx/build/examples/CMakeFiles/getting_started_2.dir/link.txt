@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/getting_started_2.dir/getting_started_2.cxx.o -o getting_started_2  ../src/libpqxx-8.0.a /usr/lib/x86_64-linux-gnu/libpq.so 

@@ -1,0 +1,37 @@
+/** Implementation of the pqxx::notification_receiever class.
+ *
+ * pqxx::notification_receiver processes notifications.
+ *
+ * Copyright (c) 2000-2026, Jeroen T. Vermeulen.
+ *
+ * See COPYING for copyright license.  If you did not receive a file called
+ * COPYING with this source code, please notify the distributor of this
+ * mistake, or contact the author.
+ */
+#include "pqxx-source.hxx"
+
+#include <string>
+
+#include "pqxx/internal/header-pre.hxx"
+
+#include "pqxx/internal/gates/connection-notification_receiver.hxx"
+#include "pqxx/notification.hxx"
+
+#include "pqxx/internal/header-post.hxx"
+
+
+pqxx::notification_receiver::notification_receiver(
+  connection &cx, std::string_view channel, sl loc) :
+        m_conn{cx}, m_channel{channel}
+{
+  pqxx::internal::gate::connection_notification_receiver{cx}.add_receiver(
+    this, loc);
+}
+
+
+pqxx::notification_receiver::~notification_receiver()
+{
+  auto loc{sl::current()};
+  pqxx::internal::gate::connection_notification_receiver{this->conn()}
+    .remove_receiver(this, loc);
+}
