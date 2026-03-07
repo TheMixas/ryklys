@@ -15,6 +15,10 @@ add_executable(ryklys_backend main.cpp
         pg-connection-pool/pgPool.cpp
         pg-connection-pool/pgPool.h
         include/ptsouchlos_thread-pool/thread_pool.h
+        zvejys-rest-api/WebSocketUtils.h
+        zvejys-rest-api/WebSocketFrame.h
+        zvejys-rest-api/WebSocketConnection.h
+        zvejys-rest-api/Connection.h
 )
 
 add_subdirectory(include/libpqxx build-pqxx)

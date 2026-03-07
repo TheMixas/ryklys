@@ -85,12 +85,12 @@ int ZvejysServer::HandleClientClosedConnection(epoll_event event) {
 
 int ZvejysServer::HandleEpollReceiveClientData(int epollFD, epoll_event event) {
     auto *conn = static_cast<HttpConnection *>(event.data.ptr);
-    conn->HandleRequest(epollFD);
+    conn->OnReadable(epollFD);
     return 1;
 }
 
 int ZvejysServer::HandleEpollSendClientData(int epollFD, epoll_event event) {
     auto *conn = static_cast<HttpConnection *>(event.data.ptr);
-    conn->HandleWrite(epollFD);
+    conn->OnWritable(epollFD);
     return 1;
 }

@@ -9,27 +9,24 @@
 
 #include "HttpRequest.h"
 #include "HttpResponse.h"
+#include "Connection.h"
 
 class ZvejysServer; // forward declaration
 
-class HttpConnection {
+class HttpConnection : public Connection {
 public:
-    HttpConnection(int fd, ZvejysServer* server) : socket_fd_(fd), server_(server) {}
-    ~HttpConnection() = default;
+    HttpConnection(int fd, ZvejysServer* server) : Connection(fd, server) {
+    }
+    ~HttpConnection() override = default;
 
     ZvejysServer* GetServer() const { return server_; }
 
 
 
-    void HandleRequest(int epollFD);
-    void HandleWrite(int epollFD);
+    void OnReadable(int epollFD) override;
+    void OnWritable(int epollFD) override;
 
-    int GetSocketFD() const {
-        return socket_fd_;
-    }
 private:
-    int socket_fd_;
-    ZvejysServer* server_; // non-owning pointer, server outlives connections
     std::vector<char> Read() const;
     HttpRequest Parse(const std::vector<char>&) const;
     static constexpr int READ_BUFFER_RESERVE = 16000; // 16KB, which is more than enough for a single HTTP request

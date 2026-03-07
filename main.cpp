@@ -58,6 +58,28 @@ void RegisterRoutes(ZvejysServer &server) {
     //     dbPool.freeConnection(connection);
     //     return response;
     // });
+
+    // WebSocket echo handler
+    server.RegisterWebSocketRoute("/ws", [](WebSocketConnection& ws) {
+        ws.SetOnMessage([](WebSocketConnection& conn,
+                           const std::vector<uint8_t>& data,
+                           WsOpcode opcode) {
+            // Echo back whatever we receive
+            if (opcode == WsOpcode::TEXT) {
+                std::string msg(data.begin(), data.end());
+                std::cout << "WS received: " << msg << std::endl;
+                conn.SendText("Echo: " + msg);
+            } else {
+                conn.SendBinary(data);
+            }
+        });
+
+        ws.SetOnClose([](WebSocketConnection& conn,
+                         uint16_t code,
+                         const std::string& reason) {
+            std::cout << "WS closed: " << code << " " << reason << std::endl;
+        });
+    });
 }
 
 int main() {
@@ -101,20 +123,31 @@ int main() {
                 httpServer.HandleEpollNewConnection(epoll_fd, event);
                 std::cout << "I just accepted a new connection" << std::endl;
             } else {
+                auto conn = static_cast<Connection*>(event.data.ptr);
                 if (event.events & EPOLLIN) {
-                    pool.enqueue_detach([&httpServer, event, epoll_fd]() {
-                        httpServer.HandleEpollReceiveClientData(epoll_fd, event);
-                        std::cout << "IM GETTING DATA GAY" << std::endl;
+                    pool.enqueue_detach([conn, epoll_fd]() {
+                        conn->OnReadable(epoll_fd);
                     });
                 }
                 if (event.events & EPOLLOUT) {
-                    // Socket is ready for writing
-                    // Here we would write the response back to the client
-                    pool.enqueue_detach([&httpServer, event, epoll_fd]() {
-                        httpServer.HandleEpollSendClientData(epoll_fd, event);
-                        std::cout << "i WANT TO WRITE GAY" << std::endl;
+                    pool.enqueue_detach([conn, epoll_fd]() {
+                        conn->OnWritable(epoll_fd);
                     });
                 }
+                // if (event.events & EPOLLIN) {
+                //     pool.enqueue_detach([&httpServer, event, epoll_fd]() {
+                //         httpServer.HandleEpollReceiveClientData(epoll_fd, event);
+                //         std::cout << "IM GETTING DATA GAY" << std::endl;
+                //     });
+                // }
+                // if (event.events & EPOLLOUT) {
+                //     // Socket is ready for writing
+                //     // Here we would write the response back to the client
+                //     pool.enqueue_detach([&httpServer, event, epoll_fd]() {
+                //         httpServer.HandleEpollSendClientData(epoll_fd, event);
+                //         std::cout << "i WANT TO WRITE GAY" << std::endl;
+                //     });
+                // }
                 if (event.events & (EPOLLHUP | EPOLLERR)) {
                     pool.enqueue_detach([&httpServer, event]() {
                         httpServer.HandleClientClosedConnection(event);

@@ -11,11 +11,45 @@
 #include <stdexcept>
 #include <sys/socket.h>
 
+#include "WebSocketUtils.h"
+
 //HandleRequest -> { Read -> Parse -> the body of this function handling the request, generate a response -> SendResponse }
 
-void HttpConnection::HandleRequest(int epollFD) {
+void HttpConnection::OnReadable(int epollFD) {
     std::vector<char> buffer = Read();
     HttpRequest request = Parse(buffer);
+
+    // ─── CHECK FOR WEBSOCKET UPGRADE ───
+    auto upgrade_it  = request.headers.find("Upgrade");
+    auto conn_it     = request.headers.find("Connection");
+    auto wskey_it    = request.headers.find("Sec-WebSocket-Key");
+
+    bool is_ws_upgrade = (request.method == HttpMethod::GET)
+        && (upgrade_it  != request.headers.end() && upgrade_it->second  == "websocket")
+        && (conn_it     != request.headers.end()) // "Upgrade" should be in Connection
+        && (wskey_it    != request.headers.end());
+
+    if (is_ws_upgrade) {
+        // Compute the accept key
+        std::string accept_key = ws_crypto::ComputeAcceptKey(wskey_it->second);
+
+        // Send the 101 Switching Protocols response
+        std::string handshake_response =
+            "HTTP/1.1 101 Switching Protocols\r\n"
+            "Upgrade: websocket\r\n"
+            "Connection: Upgrade\r\n"
+            "Sec-WebSocket-Accept: " + accept_key + "\r\n"
+            "\r\n";
+
+        send(GetSocketFD(), handshake_response.data(),
+             handshake_response.size(), MSG_NOSIGNAL);
+
+        // ─── UPGRADE: Replace this HttpConnection with a WebSocketConnection ───
+        // Tell the server to perform the swap
+        GetServer()->UpgradeToWebSocket(GetSocketFD(), epollFD, request.path);
+        return; // This HttpConnection will be destroyed by the server
+    }
+
 
     HttpResponse response;
     //Look up at the MapRouting
@@ -39,7 +73,7 @@ void HttpConnection::HandleRequest(int epollFD) {
 
 }
 
-void HttpConnection::HandleWrite(int epollFD) {
+void HttpConnection::OnWritable(int epollFD) {
     while (!response_queue_.empty()) {
         const HttpResponse &response = response_queue_.front();
         std::string header = "HTTP/1.1 " + std::to_string(response.status_code) + " " +
