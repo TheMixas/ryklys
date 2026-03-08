@@ -2,7 +2,7 @@
 *.d
 
 .idea
-
+include/libpqxx
 # Compiled Object files
 *.slo
 *.lo

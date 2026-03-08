@@ -21,6 +21,10 @@ public:
 
     User Create(const std::string &username, const std::string &email,
             const std::string &password_hash) const;
+
+    bool IsUsernameTaken(const std::string &username) const;
+
+    bool IsEmailTaken(const std::string &email) const;
 };
 
 

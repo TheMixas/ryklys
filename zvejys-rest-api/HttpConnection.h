@@ -10,10 +10,11 @@
 #include "HttpRequest.h"
 #include "HttpResponse.h"
 #include "Connection.h"
-
+#include "include/nlohmann/json.hpp"
 class ZvejysServer; // forward declaration
 
 class HttpConnection : public Connection {
+    using json = nlohmann::json;
 public:
     HttpConnection(int fd, ZvejysServer* server) : Connection(fd, server) {
     }

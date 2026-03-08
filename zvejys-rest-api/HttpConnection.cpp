@@ -20,14 +20,14 @@ void HttpConnection::OnReadable(int epollFD) {
     HttpRequest request = Parse(buffer);
 
     // ─── CHECK FOR WEBSOCKET UPGRADE ───
-    auto upgrade_it  = request.headers.find("Upgrade");
-    auto conn_it     = request.headers.find("Connection");
-    auto wskey_it    = request.headers.find("Sec-WebSocket-Key");
+    auto upgrade_it = request.headers.find("Upgrade");
+    auto conn_it = request.headers.find("Connection");
+    auto wskey_it = request.headers.find("Sec-WebSocket-Key");
 
     bool is_ws_upgrade = (request.method == HttpMethod::GET)
-        && (upgrade_it  != request.headers.end() && upgrade_it->second  == "websocket")
-        && (conn_it     != request.headers.end()) // "Upgrade" should be in Connection
-        && (wskey_it    != request.headers.end());
+                         && (upgrade_it != request.headers.end() && upgrade_it->second == "websocket")
+                         && (conn_it != request.headers.end()) // "Upgrade" should be in Connection
+                         && (wskey_it != request.headers.end());
 
     if (is_ws_upgrade) {
         // Compute the accept key
@@ -35,11 +35,11 @@ void HttpConnection::OnReadable(int epollFD) {
 
         // Send the 101 Switching Protocols response
         std::string handshake_response =
-            "HTTP/1.1 101 Switching Protocols\r\n"
-            "Upgrade: websocket\r\n"
-            "Connection: Upgrade\r\n"
-            "Sec-WebSocket-Accept: " + accept_key + "\r\n"
-            "\r\n";
+                "HTTP/1.1 101 Switching Protocols\r\n"
+                "Upgrade: websocket\r\n"
+                "Connection: Upgrade\r\n"
+                "Sec-WebSocket-Accept: " + accept_key + "\r\n"
+                "\r\n";
 
         send(GetSocketFD(), handshake_response.data(),
              handshake_response.size(), MSG_NOSIGNAL);
@@ -71,17 +71,16 @@ void HttpConnection::OnReadable(int epollFD) {
     sendEvent.data.ptr = this;
     sendEvent.events = EPOLLOUT | EPOLLET; // Edge-triggered write event
     epoll_ctl(epollFD, EPOLL_CTL_MOD, GetSocketFD(), &sendEvent);
-
 }
 
 void HttpConnection::OnWritable(int epollFD) {
     while (!response_queue_.empty()) {
         const HttpResponse &response = response_queue_.front();
         std::string header = "HTTP/1.1 " + std::to_string(response.status_code) + " " +
-                     response.status_text + "\r\n" +
-                     "Content-Length: " + std::to_string(response.body.size()) + "\r\n" +
-                     "Connection: keep-alive\r\n" +
-                     "\r\n";
+                             response.status_text + "\r\n" +
+                             "Content-Length: " + std::to_string(response.body.size()) + "\r\n" +
+                             "Connection: keep-alive\r\n" +
+                             "\r\n";
 
         ssize_t sent = send(GetSocketFD(), header.data(), header.size(), MSG_NOSIGNAL);
         if (sent == -1) {
@@ -164,11 +163,29 @@ HttpRequest HttpConnection::Parse(const std::vector<char> &buffer) const {
     request_line_stream >> method_str >> request.path >> request.version;
     request.method = GetEnumForString(method_str);
 
-    // Separate query string from path
+    // // Separate query string from path
+    // size_t query_pos = request.path.find('?');
+    // if (query_pos != std::string::npos) {
+    //     request.query_string = request.path.substr(query_pos + 1);
+    //     request.path = request.path.substr(0, query_pos);
+    // }
     size_t query_pos = request.path.find('?');
     if (query_pos != std::string::npos) {
         request.query_string = request.path.substr(query_pos + 1);
         request.path = request.path.substr(0, query_pos);
+
+        // Parse query params: key1=val1&key2=val2
+        std::string &qs = request.query_string;
+        size_t pos = 0;
+        while (pos < qs.size()) {
+            size_t amp = qs.find('&', pos);
+            if (amp == std::string::npos) amp = qs.size();
+            size_t eq = qs.find('=', pos);
+            if (eq != std::string::npos && eq < amp) {
+                request.query_params[qs.substr(pos, eq - pos)] = qs.substr(eq + 1, amp - eq - 1);
+            }
+            pos = amp + 1;
+        }
     }
 
     // Parse headers
@@ -200,5 +217,24 @@ HttpRequest HttpConnection::Parse(const std::vector<char> &buffer) const {
         request.body.assign(raw.begin() + body_start, raw.end());
     }
 
+    // Parse JSON body into body_params (flat keys only)
+    auto ct = request.headers.find("Content-Type");
+    if (ct != request.headers.end() && ct->second.find("application/json") != std::string::npos
+        && !request.body.empty()) {
+        try {
+            json body = json::parse(request.BodyString());
+            for (auto &[key, value]: body.items()) {
+                if (value.is_string()) {
+                    request.body_params[key] = value.get<std::string>();
+                } else {
+                    request.body_params[key] = value.dump(); // numbers, bools, etc. as string
+                }
+            }
+        } catch (...) {
+            // Malformed JSON — body_params stays empty, handler can check
+        }
+
+
+    }
     return request;
 }

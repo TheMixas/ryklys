@@ -39,6 +39,22 @@ struct HttpResponse {
         return res;
     }
 
+    static HttpResponse Conflict(const std::string &body) {
+        HttpResponse res;
+        res.status_code = 409;
+        res.status_text = "Conflict";
+        res.body.assign(body.begin(), body.end());
+        return res;
+    }
+
+    static HttpResponse UnprocessableEntity(const std::string &body) {
+        HttpResponse res;
+        res.status_code = 422;
+        res.status_text = "Unprocessable Entity";
+        res.body.assign(body.begin(), body.end());
+        return res;
+    }
+
     static HttpResponse Json(const std::string &json) {
         HttpResponse res;
         res.status_code = 200;

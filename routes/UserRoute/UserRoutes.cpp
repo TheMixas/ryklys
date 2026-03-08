@@ -13,8 +13,29 @@ void RegisterUserRoutes(ZvejysServer &server, UserRepository &userRepo) {
     server.RegisterRoute(HttpMethod::POST, "/user/register", [&userRepo](const HttpRequest &request) -> HttpResponse {
         // Here you would handle user registration logic, e.g., validate input, save to database, etc.
         std::cout << "Handling user registration" << std::endl;
+        auto username = request.BodyParam("username");
 
-        User newUser = userRepo.Create("testuse123123r", "22@gmaill.com@123123123123", "hashed_password123123");
+        if (!username.has_value()) {
+            return HttpResponse::UnprocessableEntity("Missing username");
+        }
+
+        // Check if username is already exists
+        if (userRepo.IsUsernameTaken(username.value())) {
+            return HttpResponse::Conflict("Username is already taken");
+        }
+
+        auto email = request.BodyParam("email");
+        if (!email.has_value()) {
+            return HttpResponse::UnprocessableEntity("Missing email");
+        }
+
+        // Check if email is already exists
+        if (userRepo.IsEmailTaken(email.value())) {
+            return HttpResponse::Conflict("Email is already taken");
+        }
+
+
+        User newUser = userRepo.Create(username.value(), email.value(), "hashed_password123123");
         std::cout << "Created user with ID: " << newUser.id << std::endl;
 
 

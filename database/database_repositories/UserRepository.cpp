@@ -31,3 +31,33 @@ User UserRepository::Create(const std::string &username, const std::string &emai
         .email = email_,
     };
 }
+
+bool UserRepository::IsUsernameTaken(const std::string &username) const {
+    auto conn = Pool().connection();
+    pqxx::work txn(*conn);
+    auto result = txn.exec(
+        "SELECT COUNT(*) FROM users WHERE username = $1"
+        , pqxx::params{username}
+    );
+
+    int count = result[0][0].as<int>();
+
+    txn.commit();
+    Pool().freeConnection(conn);
+    return count > 0;
+}
+
+bool UserRepository::IsEmailTaken(const std::string &email) const {
+    auto conn = Pool().connection();
+    pqxx::work txn(*conn);
+    auto result = txn.exec(
+        "SELECT COUNT(*) FROM users WHERE email = $1"
+        , pqxx::params{email}
+    );
+
+    int count = result[0][0].as<int>();
+
+    txn.commit();
+    Pool().freeConnection(conn);
+    return count > 0;
+}
