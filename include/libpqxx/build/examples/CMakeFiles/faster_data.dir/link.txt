@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/faster_data.dir/faster_data.cxx.o -o faster_data  ../src/libpqxx-8.0.a /usr/lib/x86_64-linux-gnu/libpq.so 

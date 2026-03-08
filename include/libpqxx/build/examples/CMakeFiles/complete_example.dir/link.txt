@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/complete_example.dir/complete_example.cxx.o -o complete_example  ../src/libpqxx-8.0.a /usr/lib/x86_64-linux-gnu/libpq.so 

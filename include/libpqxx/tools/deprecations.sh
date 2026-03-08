@@ -1,5 +1,0 @@
-#! /bin/sh
-set -Cue
-
-MARKER='include.*ignore-deprecated-pre'
-grep -Ircl "$MARKER" src include tools/*.cxx test config-tests | sort

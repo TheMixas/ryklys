@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/from_readme.dir/from_readme.cxx.o -o from_readme  ../src/libpqxx-8.0.a /usr/lib/x86_64-linux-gnu/libpq.so 

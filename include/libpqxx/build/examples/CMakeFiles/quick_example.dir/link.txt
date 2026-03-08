@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/quick_example.dir/quick_example.cxx.o -o quick_example  ../src/libpqxx-8.0.a /usr/lib/x86_64-linux-gnu/libpq.so 
