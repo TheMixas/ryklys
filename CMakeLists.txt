@@ -18,6 +18,15 @@ add_executable(ryklys_backend main.cpp
         zvejys-rest-api/WebSocketFrame.h
         zvejys-rest-api/WebSocketConnection.h
         zvejys-rest-api/Connection.h
+        routes/TestRoute/TestRoutes.cpp
+        routes/TestRoute/TestRoutes.h
+        routes/UserRoute/UserRoutes.cpp
+        routes/UserRoute/UserRoutes.h
+        routes/UserRoute/UserRoutes.cpp
+        database/database_repositories/Repository.h
+        database/database_repositories/UserRepository.cpp
+        database/database_repositories/UserRepository.h
+        types/User.h
 )
 
 add_subdirectory(include/libpqxx build-pqxx)

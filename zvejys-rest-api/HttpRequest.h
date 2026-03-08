@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "HttpMethod.h"
+#include "HttpResponse.h"
 
 struct HttpRequest {
     HttpMethod method;

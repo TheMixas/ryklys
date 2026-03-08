@@ -15,15 +15,14 @@
 
 #include <sys/types.h>
 #include <memory>
-#include "./include/trie.h"
 #include "./include/PhamPhiLong_Radix-Tree/radix_tree.h"
 #include "HttpRequest.h"
 #include "HttpResponse.h"
 #include "RouteNode.h"
 #include "WebSocketConnection.h"
-
+#include "HttpConnection.h"
 class WebSocketConnection;
-class HttpConnection;
+
 
 
 class ZvejysServer {
