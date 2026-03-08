@@ -10,5 +10,6 @@ struct User {
     std::string email;
     std::string avatar_url;
     std::string created_at;
+    std::string password_hash;
 };
 #endif //RYKLYS_BACKEND_USER_H

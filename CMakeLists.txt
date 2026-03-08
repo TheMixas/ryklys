@@ -27,7 +27,10 @@ add_executable(ryklys_backend main.cpp
         database/database_repositories/UserRepository.cpp
         database/database_repositories/UserRepository.h
         types/User.h
+        zvejys-rest-api/utils/Validation.h
+        zvejys-rest-api/utils/Validation.h
+        zvejys-rest-api/utils/PasswordHash.h
 )
 
 add_subdirectory(include/libpqxx build-pqxx)
-target_link_libraries(ryklys_backend     PRIVATE pqxx)
+target_link_libraries(ryklys_backend     PRIVATE crypt pqxx)

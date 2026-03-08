@@ -25,6 +25,8 @@ public:
     bool IsUsernameTaken(const std::string &username) const;
 
     bool IsEmailTaken(const std::string &email) const;
+
+    std::optional<User> FindByUsername(const std::string &username) const;
 };
 
 

@@ -61,3 +61,27 @@ bool UserRepository::IsEmailTaken(const std::string &email) const {
     Pool().freeConnection(conn);
     return count > 0;
 }
+
+std::optional<User> UserRepository::FindByUsername(const std::string &username) const {
+    auto conn = Pool().connection();
+    pqxx::work txn(*conn);
+    auto result = txn.exec(
+        "SELECT id, username, email, password_hash FROM users WHERE username = $1"
+        , pqxx::params{username}
+    );
+
+    txn.commit();
+    Pool().freeConnection(conn);
+
+    if (result.empty()) {
+        return std::nullopt;
+    }
+
+    return User{
+        .id = result[0]["id"].as<int>(),
+        .username = result[0]["username"].as<std::string>(),
+        .email = result[0]["email"].as<std::string>(),
+        .password_hash = result[0]["password_hash"].as<std::string>(),
+    };
+}
+

@@ -31,6 +31,22 @@ struct HttpResponse {
         return res;
     }
 
+    static HttpResponse BadRequest(const std::string &body) {
+        HttpResponse res;
+        res.status_code = 400;
+        res.status_text = "Bad Request";
+        res.body.assign(body.begin(), body.end());
+        return res;
+    }
+
+    static HttpResponse Unauthorized(const std::string &body) {
+        HttpResponse res;
+        res.status_code = 401;
+        res.status_text = "Unauthorized";
+        res.body.assign(body.begin(), body.end());
+        return res;
+    }
+
     static HttpResponse NotFound() {
         HttpResponse res;
         res.status_code = 404;
