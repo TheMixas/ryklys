@@ -11,7 +11,7 @@
 #include "./../../zvejys-rest-api/utils/Validation.h"
 #include "./../../zvejys-rest-api/utils/PasswordHash.h"
 
-
+static const std::string JWT_SECRET = "your-secret-key-change-this-in-production";
 void RegisterUserRoutes(ZvejysServer &server, UserRepository &userRepo) {
     server.RegisterRoute(HttpMethod::POST, "/user/register", [&userRepo](const HttpRequest &request) -> HttpResponse {
         // Here you would handle user registration logic, e.g., validate input, save to database, etc.
