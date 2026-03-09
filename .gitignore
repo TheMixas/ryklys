@@ -3,6 +3,9 @@
 
 .idea
 include/libpqxx
+
+# Environment variables (never commit secrets)
+.env
 # Compiled Object files
 *.slo
 *.lo

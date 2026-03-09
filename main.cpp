@@ -1,5 +1,7 @@
+#include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <unistd.h>
 #include <unordered_map>
 
@@ -8,6 +10,7 @@
 #include "pg-connection-pool/pgPool.h"
 #include "zvejys-rest-api/HttpConnection.h"
 #include "zvejys-rest-api/ZvejysServer.h"
+#include "zvejys-rest-api/utils/Env.h"
 #include "routes/TestRoute/TestRoutes.h"
 #include "routes/UserRoute/UserRoutes.h"
 const int MAX_EVENT_BATCH = 64; // Maximum number of epoll events to process in one batch
@@ -41,7 +44,20 @@ int main() {
     int epoll_fd = CreateEpoll();
 
     // -- Setup http rest server
-    ZvejysServer httpServer("127.0.0.1", 8080);
+    std::string serverHost = getEnvOrDefault("SERVER_HOST", "127.0.0.1");
+
+    int serverPort = 8080;
+    const char *serverPortEnv = std::getenv("SERVER_PORT");
+    if (serverPortEnv != nullptr) {
+        try {
+            serverPort = std::stoi(serverPortEnv);
+        } catch (const std::exception &) {
+            std::cerr << "Invalid SERVER_PORT value '" << serverPortEnv
+                      << "', falling back to default port 8080" << std::endl;
+        }
+    }
+
+    ZvejysServer httpServer(serverHost, serverPort);
     int httpServerSocketFD = httpServer.GetSocketFD();
     httpServer.Start();
     RegisterTestRoutes(httpServer);

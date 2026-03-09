@@ -30,6 +30,7 @@ add_executable(ryklys_backend main.cpp
         zvejys-rest-api/utils/Validation.h
         zvejys-rest-api/utils/Validation.h
         zvejys-rest-api/utils/PasswordHash.h
+        zvejys-rest-api/utils/Env.h
 )
 
 add_subdirectory(include/libpqxx build-pqxx)
