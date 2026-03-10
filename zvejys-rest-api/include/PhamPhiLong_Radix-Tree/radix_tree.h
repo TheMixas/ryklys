@@ -33,6 +33,7 @@ namespace phamphilong {
         iterator find(const key_type& key) const noexcept;
         std::vector<iterator> find_with_prefix(const key_type& key) const noexcept;
         std::pair<iterator, bool> insert(const value_type& value);
+        std::pair<iterator, bool> insert(value_type&& value);
         size_type erase(const key_type& key);
         size_type size() const noexcept;
         void clear() noexcept;
@@ -257,6 +258,100 @@ namespace phamphilong {
                             value,                           // value
                             parent_it.pointed_node,          // parent_node
                             get_key_len(value.first)         // depth
+                    }
+            ));
+
+            auto new_node_it = parent_it.pointed_node->children.find(sub_key);
+            if (new_node.second && (new_node_it != parent_it.pointed_node->children.end())) {
+                tree_size++;
+                return std::pair<iterator, bool>(new_node_it->second, true);
+            }
+        }
+
+        return std::pair<iterator, bool>(end(), false);
+    }
+
+    template <typename Key, typename T, typename Split, typename Len>
+    std::pair<typename radix_tree<Key, T, Split, Len>::iterator, bool> radix_tree<Key, T, Split, Len>::insert(value_type&& value) {
+        if (!root_node) {
+            root_node = new node_type(
+                    std::make_pair(key_type{}, mapped_type{}),
+                    nullptr,
+                    static_cast<size_type>(0));
+        }
+
+        auto parent_it = find_parent_node(value.first, 0, root_node);
+        if (parent_it == end()) {
+            return std::make_pair<iterator, bool>(std::move(parent_it), false);
+        }
+
+        bool found_common_branch{false};
+        key_type sub_key = split_key(value.first, parent_it.pointed_node->depth);
+        auto sub_key_len = get_key_len(sub_key);
+
+        for (auto &child_node : parent_it.pointed_node->children) {
+            size_type child_key_len = get_key_len(child_node.first);
+            size_type i = 0;
+            for (; (i < child_key_len) && (i < sub_key_len) && (child_node.first[i] == sub_key[i]); ++i) {
+                found_common_branch = true;
+            }
+
+            if (found_common_branch) {
+                node_type* found_node = child_node.second;
+                parent_it.pointed_node->children.erase(child_node.first);
+
+                key_type new_parent_node_search_key = split_key(found_node->get_search_key(), 0, i);
+                key_type new_parent_node_key = split_key(found_node->value->first, 0, parent_it.pointed_node->depth + i);
+                auto new_parent_insert_result = parent_it.pointed_node->children.insert(std::pair<key_type, node_type*>(
+                        new_parent_node_search_key,
+                        new node_type{
+                                std::make_pair(new_parent_node_key, mapped_type{}),
+                                parent_it.pointed_node,
+                                get_key_len(new_parent_node_key)
+                        }
+                ));
+                node_type* new_parent_node = new_parent_insert_result.first->second;
+
+                found_node->parent_node = new_parent_node;
+                new_parent_node->children.insert(std::pair<key_type, node_type*>(found_node->get_search_key(), found_node));
+
+                key_type new_node_search_key = split_key(sub_key, i);
+                size_type value_depth = get_key_len(value.first);
+                auto new_node_insert_result = new_parent_node->children.insert(std::pair<key_type, node_type*>(
+                        new_node_search_key,
+                        new node_type{
+                                std::move(value),
+                                new_parent_node,
+                                value_depth
+                        }
+                ));
+
+                tree_size++;
+                return std::pair<iterator, bool>(new_node_insert_result.first->second, true);
+            }
+        }
+
+        if (!found_common_branch) {
+            if ((parent_it.pointed_node != root_node) && parent_it.pointed_node->is_leaf()) {
+                parent_it.pointed_node->children.insert(std::pair<key_type, node_type*>(
+                        key_type{},
+                        new node_type{
+                                *parent_it.pointed_node->value,
+                                parent_it.pointed_node,
+                                parent_it.pointed_node->depth
+                        }
+                ));
+
+                parent_it.pointed_node->value->second = mapped_type{};
+            }
+
+            size_type value_depth = get_key_len(value.first);
+            auto new_node = parent_it.pointed_node->children.insert(std::pair<Key, node_type*>(
+                    sub_key,
+                    new node_type{
+                            std::move(value),
+                            parent_it.pointed_node,
+                            value_depth
                     }
             ));
 

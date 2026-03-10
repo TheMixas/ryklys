@@ -1,21 +1,24 @@
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <unistd.h>
 #include <unordered_map>
 
+#include "ServiceLocator.h"
+#include "config/EnvConfig.h"
+
 #include "database/database_repositories/UserRepository.h"
 #include "include/ptsouchlos_thread-pool/thread_pool.h"
 #include "pg-connection-pool/pgPool.h"
 #include "zvejys-rest-api/HttpConnection.h"
 #include "zvejys-rest-api/ZvejysServer.h"
-#include "zvejys-rest-api/utils/Env.h"
+#include "zvejys-rest-api/utils/JsonWebToken.h"
 #include "routes/TestRoute/TestRoutes.h"
 #include "routes/UserRoute/UserRoutes.h"
 const int MAX_EVENT_BATCH = 64; // Maximum number of epoll events to process in one batch
-static PGPool databaseConnectionPool;
-static UserRepository userRepository(databaseConnectionPool);
+
 int threadPoolSize = std::thread::hardware_concurrency() * 2;
 static dp::thread_pool appThreadPool(threadPoolSize);
 
@@ -35,33 +38,69 @@ void AddToEpoll(int epollFD, int fd) {
     epoll_ctl(epollFD, EPOLL_CTL_ADD, fd, &event);
 }
 
+std::optional<AuthenticatedUser> ExtractAuthenticatedUserFromRequest(const HttpRequest &request) {
+    auto authHeaderIt = request.headers.find("Authorization");
+    if (authHeaderIt == request.headers.end()) {
+        return std::nullopt;
+    }
+
+    const std::string &authHeader = authHeaderIt->second;
+    if (authHeader.rfind("Bearer ", 0) != 0) {
+        return std::nullopt;
+    }
+
+    std::string token = authHeader.substr(7);
+    auto jwtSecretOpt = EnvConfig::Instance().Get("JWT_SECRET");
+    if (!jwtSecretOpt.has_value()) {
+        std::cerr << "JWT_SECRET not set in environment variables" << std::endl;
+        return std::nullopt;
+    }
+    std::string jwtSecret = jwtSecretOpt.value();
+
+    try {
+        auto claims = jwt::Verify(token, jwtSecret);
+        if (!claims.has_value()) {
+            return std::nullopt;
+        }
+        AuthenticatedUser user;
+        user.id = claims.value().id;
+        user.username = claims.value().username;
+        return user;
+    } catch (const std::exception &e) {
+        std::cerr << "Failed to decode JWT: " << e.what() << std::endl;
+        return std::nullopt;
+    }
+}
+
 // void RegisterRoutes(ZvejysServer &server) {
 //
 // }
 
 int main() {
+    //load local path + .env
+    auto &env = EnvConfig::Instance();
+    env.Load(std::string(PROJECT_ROOT) + "/.env");
+
+    static PGPool databaseConnectionPool;
+    static UserRepository userRepository(databaseConnectionPool);
+    ServiceLocator::SetUserRepository(&userRepository);
+
+
     std::cout << "Hello, World!" << std::endl;
     int epoll_fd = CreateEpoll();
 
     // -- Setup http rest server
-    std::string serverHost = getEnvOrDefault("SERVER_HOST", "127.0.0.1");
+    std::string serverHost = env.Get("SERVER_HOST", "127.0.0.1");
+    std::string jwtSecret = env.Get("JWT_SECRET", "buillshit");
 
-    int serverPort = 8080;
-    const char *serverPortEnv = std::getenv("SERVER_PORT");
-    if (serverPortEnv != nullptr) {
-        try {
-            serverPort = std::stoi(serverPortEnv);
-        } catch (const std::exception &) {
-            std::cerr << "Invalid SERVER_PORT value '" << serverPortEnv
-                      << "', falling back to default port 8080" << std::endl;
-        }
-    }
 
-    ZvejysServer httpServer(serverHost, serverPort);
+    int serverPort = std::stoi(env.Get("SERVER_PORT", "8080"));
+
+    ZvejysServer httpServer(serverHost, serverPort, ExtractAuthenticatedUserFromRequest);
     int httpServerSocketFD = httpServer.GetSocketFD();
     httpServer.Start();
     RegisterTestRoutes(httpServer);
-    RegisterUserRoutes(httpServer, userRepository);
+    RegisterUserRoutes(httpServer);
     std::cout << "I  have routes: " << httpServer.GetRouteMap().size() << std::endl;
     std::cout << "Routes: " << std::endl;
     for (auto route = httpServer.GetRouteMap().begin(); route != httpServer.GetRouteMap().end(); ++route) {

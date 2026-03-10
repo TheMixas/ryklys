@@ -47,8 +47,11 @@ namespace phamphilong {
         using value_type = std::pair<const key_type , mapped_type>;
         using size_type = std::size_t;
 
-        radix_tree_node(value_type value, radix_tree_node* parent_node, const size_type depth)
+        radix_tree_node(const value_type& value, radix_tree_node* parent_node, const size_type depth)
                 : value{new value_type(value)}, parent_node{parent_node}, depth{depth} {}
+
+        radix_tree_node(value_type&& value, radix_tree_node* parent_node, const size_type depth)
+                : value{new value_type(std::move(value))}, parent_node{parent_node}, depth{depth} {}
 
         const Split split_key{};
         std::unique_ptr<value_type> value{nullptr};

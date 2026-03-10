@@ -1,22 +1,17 @@
 #include "pgPool.h"
 
 #include <iostream>
-#include "../zvejys-rest-api/utils/Env.h"
+#include "../config/EnvConfig.h"
+
 
 static std::string buildConnectionString() {
-    std::string host     = getEnvOrDefault("DB_HOST",     "localhost");
-    std::string port     = getEnvOrDefault("DB_PORT",     "5432");
-    std::string dbname   = getEnvOrDefault("DB_NAME",     "postgres");
-    std::string user     = getEnvOrDefault("DB_USER",     "postgres");
-    std::string password = getEnvOrDefault("DB_PASSWORD", "");
-
-    return "host=" + host + " "
-           "port=" + port + " "
-           "dbname=" + dbname + " "
-           "user=" + user + " "
-           "password=" + password;
+    auto& env = EnvConfig::Instance();
+    return "host=" + env.Get("DB_HOST", "localhost") + " "
+           "port=" + env.Get("DB_PORT", "5433") + " "
+           "dbname=" + env.Get("DB_NAME", "postgres") + " "
+           "user=" + env.Get("DB_USER", "postgres") + " "
+           "password=" + env.Get("DB_PASSWORD", "");
 }
-
 PGPool::PGPool() {
     std::cout << "Pg Poll Creation started" << std::endl;
     createPool();

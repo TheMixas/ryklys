@@ -15,12 +15,15 @@
 
 #include <sys/types.h>
 #include <memory>
+#include <variant>
+
 #include "./include/PhamPhiLong_Radix-Tree/radix_tree.h"
 #include "HttpRequest.h"
 #include "HttpResponse.h"
 #include "RouteNode.h"
 #include "WebSocketConnection.h"
 #include "HttpConnection.h"
+#include "../types/AuthenticatedUser.h"
 class WebSocketConnection;
 
 
@@ -31,22 +34,28 @@ class ZvejysServer {
 
     using WsHandlerSetup = std::function<void(WebSocketConnection &)>;
     using HttpHandler = std::function<HttpResponse(const HttpRequest &)>;
-    typedef phamphilong:: radix_tree<std::string, RouteNode> RouteRadixTree;
+    using AuthenticatedHttpHandler = std::function<HttpResponse(const HttpRequest &, const AuthenticatedUser &)>;
+    using ExtractAuthUserFromRequest = std::function<std::optional<AuthenticatedUser>(const HttpRequest &)>;
+    typedef phamphilong:: radix_tree<std::string, std::shared_ptr<RadixTreeNode>> RouteRadixTree;
     //typedef trie::trie_map<char, RouteNode> RouteRadixTree;
 
 public:
-    ZvejysServer(std::string host, int port) {
+    ZvejysServer(std::string host, int port, ExtractAuthUserFromRequest authFunc){
         this->host = std::move(host);
         this->port_ = port;
+        this->auth_func_ = std::move(authFunc);
         CreateTCPSocket();
         SetSocketToNonBlocking();
+
     }
 
     ~ZvejysServer() = default;
 
     void Start();
 
-    void RegisterRoute(HttpMethod, std::string, HttpHandler);
+    void RegisterRoute(HttpMethod httpMethod,const std::string &path, const HttpHandler& handler);
+
+    void RegisterAuthenticatedRoute(HttpMethod httpMethod, const std::string &path, AuthenticatedHttpHandler handler);
 
     //Epoll
     int HandleEpollNewConnection(int epollFD, epoll_event event);
@@ -125,6 +134,12 @@ private:
     //Webscokets
     std::unordered_map<std::string, WsHandlerSetup> ws_routes_;
     std::unordered_map<int, std::unique_ptr<WebSocketConnection> > ws_connections_;
+
+    // Function provided at server construction that extracts an AuthenticatedUser
+    // from an incoming request (e.g. by validating a JWT). Authenticated route
+    // handlers invoke this to resolve the caller's identity before dispatching.
+    ExtractAuthUserFromRequest auth_func_;
+
 };
 
 

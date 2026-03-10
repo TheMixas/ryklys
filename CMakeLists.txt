@@ -31,10 +31,11 @@ add_executable(ryklys_backend main.cpp
         zvejys-rest-api/utils/Validation.h
         zvejys-rest-api/utils/PasswordHash.h
         zvejys-rest-api/utils/JsonWebToken.h
-        zvejys-rest-api/utils/JsonWebToken.h
         zvejys-rest-api/utils/Crypto.h
-        zvejys-rest-api/utils/Crypto.h
+        config/EnvConfig.h
+        types/AuthenticatedUser.h
+        ServiceLocator.h
 )
-
+target_compile_definitions(ryklys_backend PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
 add_subdirectory(include/libpqxx build-pqxx)
 target_link_libraries(ryklys_backend     PRIVATE crypt pqxx)

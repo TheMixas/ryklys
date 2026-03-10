@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <utility>
 
 #include "HttpConnection.h"
 
@@ -47,9 +48,14 @@ void ZvejysServer::Start() {
     std::cout << "Server is listening on " << host << ":" << port_ << std::endl;
 }
 
-void ZvejysServer::RegisterRoute(HttpMethod httpMethod, std::string path, HttpHandler handler) {
-    RouteNode handlerNode(httpMethod, handler);
-    route_map_.insert(std::make_pair<>(std::move(path), std::move(handlerNode)));
+void ZvejysServer::RegisterRoute(HttpMethod httpMethod,const std::string &path, const HttpHandler& handler) {
+    auto handlerNode = std::make_shared<RouteNode>(httpMethod,handler);
+    route_map_.insert(std::pair<const std::string, std::shared_ptr<RadixTreeNode>>(path, std::move(handlerNode)));
+}
+
+void ZvejysServer::RegisterAuthenticatedRoute(HttpMethod httpMethod,const std::string &path, AuthenticatedHttpHandler handler) {
+    auto authenticatedRouteNode = std::make_shared<AuthenticatedRouteNode>(httpMethod,std::move(handler), auth_func_);
+    route_map_.insert(std::pair<const std::string, std::shared_ptr<RadixTreeNode>>(path, std::move(authenticatedRouteNode)));
 }
 
 int ZvejysServer::HandleEpollNewConnection(int epollFD, epoll_event event) {

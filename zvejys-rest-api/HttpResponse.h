@@ -79,6 +79,14 @@ struct HttpResponse {
         res.body.assign(json.begin(), json.end());
         return res;
     }
+
+    static HttpResponse InternalServerError(const std::string &body) {
+        HttpResponse res;
+        res.status_code = 500;
+        res.status_text = "Internal Server Error";
+        res.body.assign(body.begin(), body.end());
+        return res;
+    }
 };
 
 

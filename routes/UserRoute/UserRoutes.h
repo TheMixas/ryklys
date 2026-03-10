@@ -8,7 +8,7 @@
 #include "../../pg-connection-pool/pgPool.h"
 #include "./../../database/database_repositories/UserRepository.h"
 
-void RegisterUserRoutes(ZvejysServer &server, UserRepository &userRepo);
+void RegisterUserRoutes(ZvejysServer &server);
 
 
 
