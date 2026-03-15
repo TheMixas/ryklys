@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 4.1)
+cmake_minimum_required(VERSION 3.20)
 project(ryklys_backend)
 
 set(CMAKE_CXX_STANDARD 20)
+set(PQXX /usr/local/include/pqxx)
 
 add_executable(ryklys_backend main.cpp
         zvejys-rest-api/ZvejysServer.cpp
@@ -35,7 +36,17 @@ add_executable(ryklys_backend main.cpp
         config/EnvConfig.h
         types/AuthenticatedUser.h
         ServiceLocator.h
+        zvejys-rest-api/cors/Cors.cpp
+        zvejys-rest-api/cors/Cors.h
 )
 target_compile_definitions(ryklys_backend PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
-add_subdirectory(include/libpqxx build-pqxx)
-target_link_libraries(ryklys_backend     PRIVATE crypt pqxx)
+#add_subdirectory(include/libpqxx build-pqxx)
+#target_link_libraries(ryklys_backend     PRIVATE crypt pqxx)
+#find_package(libpqxx REQUIRED)
+
+find_library(PQXX_LIB pqxx)
+find_library(PQ_LIB pq)
+
+message(STATUS "PQXX_LIB: ${PQXX_LIB}")
+message(STATUS "PQ_LIB: ${PQ_LIB}")
+target_link_libraries(ryklys_backend crypt ${PQXX_LIB} ${PQ_LIB})

@@ -7,7 +7,7 @@
 static std::string buildConnectionString() {
     auto& env = EnvConfig::Instance();
     return "host=" + env.Get("DB_HOST", "localhost") + " "
-           "port=" + env.Get("DB_PORT", "5433") + " "
+           "port=" + env.Get("DB_PORT", "5432") + " "
            "dbname=" + env.Get("DB_NAME", "postgres") + " "
            "user=" + env.Get("DB_USER", "postgres") + " "
            "password=" + env.Get("DB_PASSWORD", "");

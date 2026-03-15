@@ -31,6 +31,13 @@ struct HttpResponse {
         return res;
     }
 
+    static HttpResponse NoContent() {
+        HttpResponse res;
+        res.status_code = 204;
+        res.status_text = "No Content";
+        return res;
+    }
+
     static HttpResponse BadRequest(const std::string &body) {
         HttpResponse res;
         res.status_code = 400;
@@ -47,11 +54,19 @@ struct HttpResponse {
         return res;
     }
 
-    static HttpResponse NotFound() {
+    static HttpResponse Forbidden(const std::string &body) {
+        HttpResponse res;
+        res.status_code = 403;
+        res.status_text = "Forbidden";
+        res.body.assign(body.begin(), body.end());
+        return res;
+    }
+
+    static HttpResponse NotFound(const std::string &body) {
         HttpResponse res;
         res.status_code = 404;
         res.status_text = "Not Found";
-        res.body.assign({'N','o','t',' ','F','o','u','n','d'});
+        res.body.assign(body.begin(), body.end());
         return res;
     }
 

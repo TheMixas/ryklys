@@ -4,10 +4,10 @@ class ZvejysServer;
 
 class Connection {
 public:
-    explicit Connection(int fd, ZvejysServer* server) : socket_fd_(fd), server_(server) {}
+    explicit Connection(int fd, ZvejysServer* server, int epollFd) : socket_fd_(fd), server_(server),epollFD(epollFd) {}
     virtual ~Connection() = default;
 
-    virtual void OnReadable(int epollFD) = 0;
+    virtual void OnReadable() = 0;
     virtual void OnWritable(int epollFD) = 0;
 
 
@@ -16,6 +16,7 @@ public:
 protected:
     int socket_fd_;
     ZvejysServer* server_; // non-owning pointer, server outlives connections
+    int epollFD;
 
 };
 #endif // CONNECTION_H

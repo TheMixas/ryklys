@@ -28,7 +28,7 @@ public:
     using OnMessageCallback = std::function<void(WebSocketConnection &, const std::vector<uint8_t> &, WsOpcode)>;
     using OnCloseCallback = std::function<void(WebSocketConnection &, uint16_t code, const std::string &reason)>;
 
-    WebSocketConnection(int fd, ZvejysServer *server) : Connection(fd, server) {
+    WebSocketConnection(int fd, ZvejysServer *server, int epollFd) : Connection(fd, server, epollFd) {
         state_ = WsState::OPEN;
     }
 
@@ -73,7 +73,7 @@ public:
     }
 
     // Reads raw bytes, feeds them to the frame parser, dispatches callbacks.
-    void OnReadable(int epollFD) override {
+    void OnReadable() override{
         // Read available data from socket into read_buffer_
         uint8_t chunk[4096];
         while (true) {

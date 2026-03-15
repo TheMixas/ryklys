@@ -15,6 +15,7 @@
 
 #include <sys/types.h>
 #include <memory>
+#include <unordered_set>
 #include <variant>
 
 #include "./include/PhamPhiLong_Radix-Tree/radix_tree.h"
@@ -24,36 +25,31 @@
 #include "WebSocketConnection.h"
 #include "HttpConnection.h"
 #include "../types/AuthenticatedUser.h"
+#include "cors/Cors.h"
 class WebSocketConnection;
 
 
-
 class ZvejysServer {
-    // A tagged wrapper so epoll data.ptr can tell us the connection type
-
-
     using WsHandlerSetup = std::function<void(WebSocketConnection &)>;
     using HttpHandler = std::function<HttpResponse(const HttpRequest &)>;
     using AuthenticatedHttpHandler = std::function<HttpResponse(const HttpRequest &, const AuthenticatedUser &)>;
     using ExtractAuthUserFromRequest = std::function<std::optional<AuthenticatedUser>(const HttpRequest &)>;
-    typedef phamphilong:: radix_tree<std::string, std::shared_ptr<RadixTreeNode>> RouteRadixTree;
-    //typedef trie::trie_map<char, RouteNode> RouteRadixTree;
+    typedef phamphilong::radix_tree<std::string, std::shared_ptr<RadixTreeNode> > RouteRadixTree;
 
 public:
-    ZvejysServer(std::string host, int port, ExtractAuthUserFromRequest authFunc){
+    ZvejysServer(std::string host, int port, CorsConfig &corsConfig,
+                 ExtractAuthUserFromRequest authFunc) : cors(std::move(corsConfig)), auth_func_(std::move(authFunc)) {
         this->host = std::move(host);
         this->port_ = port;
-        this->auth_func_ = std::move(authFunc);
         CreateTCPSocket();
         SetSocketToNonBlocking();
-
     }
 
     ~ZvejysServer() = default;
 
     void Start();
 
-    void RegisterRoute(HttpMethod httpMethod,const std::string &path, const HttpHandler& handler);
+    void RegisterRoute(HttpMethod httpMethod, const std::string &path, const HttpHandler &handler);
 
     void RegisterAuthenticatedRoute(HttpMethod httpMethod, const std::string &path, AuthenticatedHttpHandler handler);
 
@@ -66,7 +62,11 @@ public:
 
     int HandleEpollSendClientData(int epollFD, epoll_event event);
 
-    const RouteRadixTree& GetRouteMap() const {
+    Cors &GetCors() {
+        return cors;
+    }
+
+    const RouteRadixTree &GetRouteMap() const {
         return route_map_;
     }
 
@@ -79,17 +79,17 @@ public:
 
     // Register a WebSocket route. The setup callback configures
     // on_message/on_close on the newly-upgraded connection.
-    void RegisterWebSocketRoute(const std::string& path, WsHandlerSetup setup) {
+    void RegisterWebSocketRoute(const std::string &path, WsHandlerSetup setup) {
         ws_routes_[path] = std::move(setup);
     }
 
     // Called by HttpConnection after it sends the 101 handshake
-    void UpgradeToWebSocket(int fd, int epollFD, const std::string& path) {
+    void UpgradeToWebSocket(int fd, int epollFD, const std::string &path) {
         // Remove the old HttpConnection
         connections.erase(fd);
 
         // Create a WebSocketConnection
-        auto ws_conn = std::make_unique<WebSocketConnection>(fd, this);
+        auto ws_conn = std::make_unique<WebSocketConnection>(fd, this, epollFD);
 
         // Apply the user-registered setup callback for this path
         auto it = ws_routes_.find(path);
@@ -135,11 +135,13 @@ private:
     std::unordered_map<std::string, WsHandlerSetup> ws_routes_;
     std::unordered_map<int, std::unique_ptr<WebSocketConnection> > ws_connections_;
 
+    Cors cors;
+
+
     // Function provided at server construction that extracts an AuthenticatedUser
     // from an incoming request (e.g. by validating a JWT). Authenticated route
     // handlers invoke this to resolve the caller's identity before dispatching.
     ExtractAuthUserFromRequest auth_func_;
-
 };
 
 

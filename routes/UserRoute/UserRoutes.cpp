@@ -82,16 +82,24 @@ void RegisterUserRoutes(ZvejysServer &server) {
         }
 
         std::string token = jwt::Create(loginUser->id, loginUser->username, jwtSecret.value());
+        HttpResponse response = HttpResponse::Ok("Login successful");
+        response.headers["Set-Cookie"] = std::string("token=") + token +
+                                         "; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600";
 
-        return HttpResponse::Json("{\"token\":\"" + token + "\"}");
-    });
-
-    server.RegisterAuthenticatedRoute(HttpMethod::GET, "/api/users/me", [](const HttpRequest &request, const AuthenticatedUser &authUser) -> HttpResponse {
-        // This route requires authentication. The authUser parameter contains the authenticated user's info.
-        std::cout << "Handling authenticated request for user: " << authUser.username << std::endl;
-
-        // For demonstration, we just return the authenticated user's info
-        HttpResponse response = HttpResponse::Json("{\"id\":" + std::to_string(authUser.id) + ", \"username\":\"" + authUser.username + "\"}");
         return response;
     });
+
+    server.RegisterAuthenticatedRoute(HttpMethod::GET, "/api/users/me",
+                                      [](const HttpRequest &request,
+                                         const AuthenticatedUser &authUser) -> HttpResponse {
+                                          // This route requires authentication. The authUser parameter contains the authenticated user's info.
+                                          std::cout << "Handling authenticated request for user: " << authUser.username
+                                                  << std::endl;
+
+                                          // For demonstration, we just return the authenticated user's info
+                                          HttpResponse response = HttpResponse::Json(
+                                              "{\"id\":" + std::to_string(authUser.id) + ", \"username\":\"" + authUser.
+                                              username + "\"}");
+                                          return response;
+                                      });
 }

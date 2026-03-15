@@ -18,7 +18,7 @@ public:
     void Load(const std::string& path ) {
         std::ifstream file(path);
         if (!file.is_open()) {
-            std::cerr << "[EnvConfig] Warning: could not open '" << path << "'" << std::endl;
+            std::cerr << "[EnvConfig] .env file not found at '" << path << "' — falling back to environment variables." << std::endl;
             return;
         }
 
@@ -61,12 +61,20 @@ public:
     }
 
     std::optional<std::string> Get(const std::string& key) const {
+        // Check real environment variables first
+        if (const char* val = std::getenv(key.c_str())) {
+            return std::string(val);
+        }
         auto it = vars_.find(key);
         if (it != vars_.end()) return it->second;
         return std::nullopt;
     }
 
     std::string Get(const std::string& key, const std::string& defaultValue) const {
+        // Check real environment variables first
+        if (const char* val = std::getenv(key.c_str())) {
+            return std::string(val);
+        }
         auto it = vars_.find(key);
         if (it != vars_.end()) return it->second;
         return defaultValue;

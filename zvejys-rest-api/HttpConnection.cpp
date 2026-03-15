@@ -6,6 +6,7 @@
 #include "ZvejysServer.h"
 
 #include <cerrno>
+#include <charconv>
 #include <cstdio>
 #include <sstream>
 #include <stdexcept>
@@ -15,21 +16,143 @@
 
 //HandleRequest -> { Read -> Parse -> the body of this function handling the request, generate a response -> SendResponse }
 
-void HttpConnection::OnReadable(int epollFD) {
-    std::vector<char> buffer = Read();
-    HttpRequest request = Parse(buffer);
+int HttpConnection::find_end_of_one_http_request(std::span<const char> buf) {
+    if (buf.size() < 2) return -1;
+
+    for (size_t i = 0; i + 3 < buf.size(); ++i) {
+        if (buf[i] == '\r' && buf[i+1] == '\n' &&
+            buf[i+2] == '\r' && buf[i+3] == '\n') [[unlikely]]
+            return static_cast<int>(i + 4);
+    }
+    for (size_t i = 0; i + 1 < buf.size(); ++i) {
+        if (buf[i] == '\n' && buf[i+1] == '\n') [[unlikely]]
+            return static_cast<int>(i + 2);
+    }
+    return -1;
+}
+
+int HttpConnection::parse_content_length(std::span<const char> headers) {
+    std::string_view sv(headers.data(), headers.size());
+
+    constexpr std::string_view key = "content-length:";
+
+    // Case-insensitive search via ranges — no allocation, no manual tolower loop
+    auto result = std::ranges::search(sv, key, [](char a, char b) {
+        return std::tolower(static_cast<unsigned char>(a)) ==
+               std::tolower(static_cast<unsigned char>(b));
+    });
+    if (result.empty()) return -1;
+
+    // Advance past the key, trim leading whitespace
+    std::string_view remainder = sv.substr(result.begin() - sv.begin() + key.size());
+    auto value_start = std::ranges::find_if_not(remainder, [](char c) {
+        return std::isspace(static_cast<unsigned char>(c));
+    });
+    if (value_start == remainder.end()) return -1;
+
+    remainder = remainder.substr(value_start - remainder.begin());
+
+    // from_chars: no heap, no exceptions, strict digit-only parse
+    int value = 0;
+    auto [ptr, ec] = std::from_chars(remainder.data(), remainder.data() + remainder.size(), value);
+    if (ec != std::errc{} || value < 0) return -1;
+
+    return value;
+}
+
+void HttpConnection::OnReadable() {
+    static constexpr size_t kMaxBufferSize = 8 * 1024 * 1024; // 8 MB hard cap
+
+    // ── Phase 1: Drain the socket ────────────────────────────────────────────
+    char tmp[4096];
+    while (true) {
+        ssize_t n = recv(GetSocketFD(), tmp, sizeof(tmp), 0);
+        if (n <= 0) break;
+
+        // Reject before inserting — prevents the addition itself from wrapping
+        if (read_buffer_.size() + static_cast<size_t>(n) > kMaxBufferSize) {
+            // Close();
+            return;
+        }
+        read_buffer_.insert(read_buffer_.end(), tmp, tmp + n);
+    }
+
+    // ── Phase 2: Parse complete requests via consume offset ──────────────────
+    //
+    // Advancing an offset and doing one erase at the end keeps this O(n)
+    // over the whole call rather than O(n*m) with per-request front-erase.
+    size_t consume_offset = 0;
+
+    while (true) {
+        // View into the unconsumed portion — no copies
+        std::span<const char> buf(read_buffer_.data() + consume_offset,
+                                  read_buffer_.size()  - consume_offset);
+
+        // 1. Do we have a complete header block yet?
+        int body_start_raw = find_end_of_one_http_request(buf);
+        if (body_start_raw < 0) break;
+        auto body_start = static_cast<size_t>(body_start_raw);
+
+        // 2. Reject chunked encoding rather than silently mishandling it
+        // if (is_chunked(buf.subspan(0, body_start))) { Close(); return; }
+
+        // 3. Parse Content-Length from the header span only —
+        //    the helper never sees the body, so it can't be confused by
+        //    a body that happens to contain "Content-Length: ..." text.
+        int content_length_raw = parse_content_length(buf.subspan(0, body_start));
+        if (content_length_raw < 0) {
+            // Missing or malformed — can't determine request boundary
+            // Close();
+            return;
+        }
+        auto content_length = static_cast<size_t>(content_length_raw);
+
+        // 4. Overflow guard before the addition.
+        //    Without this a crafted Content-Length wraps total_len to a small
+        //    number, bypassing the completeness check below.
+        if (content_length > kMaxBufferSize - body_start) {
+            // Close();
+            return;
+        }
+        size_t total_len = body_start + content_length;
+
+        // 5. Completeness check — both operands are size_t, no signed promotion
+        if (buf.size() < total_len) break;
+
+        // 6. Parse and dispatch — span subspan avoids a copy until Parse() needs it
+        HttpRequest http_request = Parse(std::vector<char>(buf.begin(), buf.begin() + total_len));
+        HandleRead(http_request);
+
+        consume_offset += total_len;
+    }
+
+    // 7. Single O(remaining) erase for all consumed requests
+    if (consume_offset > 0) {
+        read_buffer_.erase(read_buffer_.begin(),
+                           read_buffer_.begin() + static_cast<std::ptrdiff_t>(consume_offset));
+    }
+}
+
+//Handles the full request
+void HttpConnection::HandleRead(HttpRequest request) {
+    // std::vector<char> buffer = Read();
+    // HttpRequest request = Parse(buffer);
 
     // ─── CHECK FOR WEBSOCKET UPGRADE ───
     auto upgrade_it = request.headers.find("Upgrade");
     auto conn_it = request.headers.find("Connection");
     auto wskey_it = request.headers.find("Sec-WebSocket-Key");
 
-    bool is_ws_upgrade = (request.method == HttpMethod::GET)
-                         && (upgrade_it != request.headers.end() && upgrade_it->second == "websocket")
-                         && (conn_it != request.headers.end()) // "Upgrade" should be in Connection
-                         && (wskey_it != request.headers.end());
+    bool isWsUpgrade = (request.method == HttpMethod::GET)
+                       && (upgrade_it != request.headers.end() && upgrade_it->second == "websocket")
+                       && (conn_it != request.headers.end()) // "Upgrade" should be in Connection
+                       && (wskey_it != request.headers.end());
 
-    if (is_ws_upgrade) {
+    bool isCorsPreflight = (request.method == HttpMethod::OPTIONS)
+                           && (request.headers.find("Origin") != request.headers.end())
+                           && (request.headers.find("Access-Control-Request-Method") != request.headers.end());
+
+    if (isWsUpgrade) {
         // Compute the accept key
         std::string accept_key = ws_crypto::ComputeAcceptKey(wskey_it->second);
 
@@ -47,43 +170,66 @@ void HttpConnection::OnReadable(int epollFD) {
         // ─── UPGRADE: Replace this HttpConnection with a WebSocketConnection ───
         // Tell the server to perform the swap
         GetServer()->UpgradeToWebSocket(GetSocketFD(), epollFD, request.path);
-        return; // This HttpConnection will be destroyed by the server, replaced with a WebSocketConnection
-    }
-
-    //Handle regular http request
-    HttpResponse response;
-    //Look up at the MapRouting
-    auto handler_it = GetServer()->GetRouteMap().find(request.path);
-    if (handler_it != GetServer()->GetRouteMap().end()) {
-        // response = handler_it.value().handler(request);
-        //response = handler_it->second.handler(request);
-        auto node = handler_it->second;
-        response = node.get()->HandleRequest(request);
+    } else if (isCorsPreflight) {
+        std::optional<HttpResponse> response = server_->GetCors().handle_preflight(request);
+        if (!response.has_value()) {
+            response = HttpResponse::Forbidden("CORS preflight failed: Origin not allowed");
+        }
+        response_queue_.push(std::move(response.value()));
+        //Arm for writing/sending
+        epoll_event sendEvent{};
+        sendEvent.data.ptr = this;
+        sendEvent.events = EPOLLOUT | EPOLLET; // Edge-triggered write event
+        epoll_ctl(epollFD, EPOLL_CTL_MOD, GetSocketFD(), &sendEvent);
     } else {
-        // If no handler found, send a 404 response
-        response.status_code = 404;
-        response.status_text = "Not Found";
-        response.body = std::vector<char>{'N', 'o', 't', ' ', 'F', 'o', 'u', 'n', 'd'};
+        //Handle regular http request
+
+        HttpResponse response;
+        //Look up at the MapRouting
+        auto handler_it = GetServer()->GetRouteMap().find(request.path);
+        if (handler_it != GetServer()->GetRouteMap().end()) {
+            // response = handler_it.value().handler(request);
+            //response = handler_it->second.handler(request);
+            auto node = handler_it->second;
+            response = node.get()->HandleRequest(request);
+        } else {
+            response = HttpResponse::NotFound("Route not found");
+        }
+
+        //apply CORS headers if needed
+        GetServer()->GetCors().apply_cors_headers(request, response);
+
+        response_queue_.push(std::move(response));
+        //Arm for writing/sending
+        epoll_event sendEvent{};
+        sendEvent.data.ptr = this;
+        sendEvent.events = EPOLLOUT | EPOLLET; // Edge-triggered write event
+        epoll_ctl(epollFD, EPOLL_CTL_MOD, GetSocketFD(), &sendEvent);
     }
-
-    response_queue_.push(std::move(response));
-
-    //Arm for writing
-    epoll_event sendEvent{};
-    sendEvent.data.ptr = this;
-    sendEvent.events = EPOLLOUT | EPOLLET; // Edge-triggered write event
-    epoll_ctl(epollFD, EPOLL_CTL_MOD, GetSocketFD(), &sendEvent);
 }
+
 
 void HttpConnection::OnWritable(int epollFD) {
     while (!response_queue_.empty()) {
         const HttpResponse &response = response_queue_.front();
-        std::string header = "HTTP/1.1 " + std::to_string(response.status_code) + " " +
-                             response.status_text + "\r\n" +
-                             "Content-Length: " + std::to_string(response.body.size()) + "\r\n" +
-                             "Connection: keep-alive\r\n" +
-                             "\r\n";
 
+
+        // Start status line
+        std::string header = "HTTP/1.1 " + std::to_string(response.status_code) + " " +
+                             response.status_text + "\r\n";
+
+
+        // Add any custom headers from the response object (Content-Type, Set-Cookie, etc.)
+        for (const auto &pair: response.headers) {
+            header += pair.first + ": " + pair.second + "\r\n";
+        }
+
+        // Add required headers
+        header += "Content-Length: " + std::to_string(response.body.size()) + "\r\n";
+        header += "Connection: keep-alive\r\n";
+        header += "\r\n";
+
+        // Send headers and body
         ssize_t sent = send(GetSocketFD(), header.data(), header.size(), MSG_NOSIGNAL);
         if (sent == -1) {
             if (errno == EPIPE || errno == ECONNRESET) {
@@ -235,8 +381,6 @@ HttpRequest HttpConnection::Parse(const std::vector<char> &buffer) const {
         } catch (...) {
             // Malformed JSON — body_params stays empty, handler can check
         }
-
-
     }
     return request;
 }

@@ -21,7 +21,13 @@ const int MAX_EVENT_BATCH = 64; // Maximum number of epoll events to process in 
 
 int threadPoolSize = std::thread::hardware_concurrency() * 2;
 static dp::thread_pool appThreadPool(threadPoolSize);
-
+CorsConfig corsConfig{
+    .allowed_origins = {"http://localhost:3000", "http://localhost:5173"},
+    .allow_credentials = true,
+    .allowed_methods = {"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+    .allowed_headers = {"Content-Type", "Authorization"},
+    .max_age_seconds = 86400 // 24 hours
+};
 int CreateEpoll() {
     int epoll_fd = epoll_create1(0);
     if (epoll_fd < 0) {
@@ -37,40 +43,67 @@ void AddToEpoll(int epollFD, int fd) {
     event.events = EPOLLIN | EPOLLET; // Edge-triggered read events
     epoll_ctl(epollFD, EPOLL_CTL_ADD, fd, &event);
 }
-
 std::optional<AuthenticatedUser> ExtractAuthenticatedUserFromRequest(const HttpRequest &request) {
-    auto authHeaderIt = request.headers.find("Authorization");
-    if (authHeaderIt == request.headers.end()) {
-        return std::nullopt;
-    }
-
-    const std::string &authHeader = authHeaderIt->second;
-    if (authHeader.rfind("Bearer ", 0) != 0) {
-        return std::nullopt;
-    }
-
-    std::string token = authHeader.substr(7);
-    auto jwtSecretOpt = EnvConfig::Instance().Get("JWT_SECRET");
-    if (!jwtSecretOpt.has_value()) {
-        std::cerr << "JWT_SECRET not set in environment variables" << std::endl;
-        return std::nullopt;
-    }
-    std::string jwtSecret = jwtSecretOpt.value();
-
-    try {
-        auto claims = jwt::Verify(token, jwtSecret);
-        if (!claims.has_value()) {
-            return std::nullopt;
+    std::string token;
+    auto cookieIt = request.headers.find("Cookie");
+    if (cookieIt != request.headers.end()) {
+        const std::string &cookie = cookieIt->second;
+        // crude parsing; robust parser recommended
+        auto pos = cookie.find("token=");
+        if (pos != std::string::npos) {
+            auto start = pos + 6;
+            auto end = cookie.find(';', start);
+            token = cookie.substr(start, (end==std::string::npos) ? std::string::npos : end-start);
         }
-        AuthenticatedUser user;
-        user.id = claims.value().id;
-        user.username = claims.value().username;
+    }
+
+    if (token.empty()) return std::nullopt;
+
+    // validate token as before
+    auto jwtSecretOpt = EnvConfig::Instance().Get("JWT_SECRET");
+    if (!jwtSecretOpt.has_value()) return std::nullopt;
+    try {
+        auto claims = jwt::Verify(token, jwtSecretOpt.value());
+        if (!claims.has_value()) return std::nullopt;
+        AuthenticatedUser user{claims->id, claims->username};
         return user;
-    } catch (const std::exception &e) {
-        std::cerr << "Failed to decode JWT: " << e.what() << std::endl;
+    } catch (...) {
         return std::nullopt;
     }
 }
+// std::optional<AuthenticatedUser> ExtractAuthenticatedUserFromRequest(const HttpRequest &request) {
+//     auto authHeaderIt = request.headers.find("Authorization");
+//     if (authHeaderIt == request.headers.end()) {
+//         return std::nullopt;
+//     }
+//
+//     const std::string &authHeader = authHeaderIt->second;
+//     if (authHeader.rfind("Bearer ", 0) != 0) {
+//         return std::nullopt;
+//     }
+//
+//     std::string token = authHeader.substr(7);
+//     auto jwtSecretOpt = EnvConfig::Instance().Get("JWT_SECRET");
+//     if (!jwtSecretOpt.has_value()) {
+//         std::cerr << "JWT_SECRET not set in environment variables" << std::endl;
+//         return std::nullopt;
+//     }
+//     std::string jwtSecret = jwtSecretOpt.value();
+//
+//     try {
+//         auto claims = jwt::Verify(token, jwtSecret);
+//         if (!claims.has_value()) {
+//             return std::nullopt;
+//         }
+//         AuthenticatedUser user;
+//         user.id = claims.value().id;
+//         user.username = claims.value().username;
+//         return user;
+//     } catch (const std::exception &e) {
+//         std::cerr << "Failed to decode JWT: " << e.what() << std::endl;
+//         return std::nullopt;
+//     }
+// }
 
 // void RegisterRoutes(ZvejysServer &server) {
 //
@@ -96,7 +129,7 @@ int main() {
 
     int serverPort = std::stoi(env.Get("SERVER_PORT", "8080"));
 
-    ZvejysServer httpServer(serverHost, serverPort, ExtractAuthenticatedUserFromRequest);
+    ZvejysServer httpServer(serverHost, serverPort,corsConfig, ExtractAuthenticatedUserFromRequest);
     int httpServerSocketFD = httpServer.GetSocketFD();
     httpServer.Start();
     RegisterTestRoutes(httpServer);
@@ -127,7 +160,7 @@ int main() {
                 auto conn = static_cast<Connection *>(event.data.ptr);
                 if (event.events & EPOLLIN) {
                     appThreadPool.enqueue_detach([conn, epoll_fd]() {
-                        conn->OnReadable(epoll_fd);
+                        conn->OnReadable();
                     });
                 }
                 if (event.events & EPOLLOUT) {

@@ -67,7 +67,7 @@ int ZvejysServer::HandleEpollNewConnection(int epollFD, epoll_event event) {
 
     // Register the new client socket with epoll
     struct epoll_event client_event;
-    auto conn = std::make_unique<HttpConnection>(client_socket_fd, this);
+    auto conn = std::make_unique<HttpConnection>(client_socket_fd, this, epollFD);
     client_event.data.ptr = conn.get();
     connections[client_socket_fd] = std::move(conn);
     client_event.events = EPOLLIN | EPOLLET; // Edge-triggered read events
@@ -91,7 +91,7 @@ int ZvejysServer::HandleClientClosedConnection(epoll_event event) {
 
 int ZvejysServer::HandleEpollReceiveClientData(int epollFD, epoll_event event) {
     auto *conn = static_cast<HttpConnection *>(event.data.ptr);
-    conn->OnReadable(epollFD);
+    conn->OnReadable();
     return 1;
 }
 
