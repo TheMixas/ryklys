@@ -17,6 +17,7 @@ class HttpConnection : public Connection {
     using json = nlohmann::json;
 public:
     HttpConnection(int fd, ZvejysServer* server, int epollFd) : Connection(fd, server, epollFd) {
+        read_buffer_.reserve(READ_BUFFER_RESERVE);
     }
 
     ~HttpConnection() override = default;

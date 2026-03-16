@@ -16,121 +16,71 @@
 
 //HandleRequest -> { Read -> Parse -> the body of this function handling the request, generate a response -> SendResponse }
 
-int HttpConnection::find_end_of_one_http_request(std::span<const char> buf) {
-    if (buf.size() < 2) return -1;
-
-    for (size_t i = 0; i + 3 < buf.size(); ++i) {
-        if (buf[i] == '\r' && buf[i+1] == '\n' &&
-            buf[i+2] == '\r' && buf[i+3] == '\n') [[unlikely]]
-            return static_cast<int>(i + 4);
-    }
-    for (size_t i = 0; i + 1 < buf.size(); ++i) {
-        if (buf[i] == '\n' && buf[i+1] == '\n') [[unlikely]]
-            return static_cast<int>(i + 2);
-    }
-    return -1;
-}
-
-int HttpConnection::parse_content_length(std::span<const char> headers) {
-    std::string_view sv(headers.data(), headers.size());
-
-    constexpr std::string_view key = "content-length:";
-
-    // Case-insensitive search via ranges — no allocation, no manual tolower loop
-    auto result = std::ranges::search(sv, key, [](char a, char b) {
-        return std::tolower(static_cast<unsigned char>(a)) ==
-               std::tolower(static_cast<unsigned char>(b));
-    });
-    if (result.empty()) return -1;
-
-    // Advance past the key, trim leading whitespace
-    std::string_view remainder = sv.substr(result.begin() - sv.begin() + key.size());
-    auto value_start = std::ranges::find_if_not(remainder, [](char c) {
-        return std::isspace(static_cast<unsigned char>(c));
-    });
-    if (value_start == remainder.end()) return -1;
-
-    remainder = remainder.substr(value_start - remainder.begin());
-
-    // from_chars: no heap, no exceptions, strict digit-only parse
-    int value = 0;
-    auto [ptr, ec] = std::from_chars(remainder.data(), remainder.data() + remainder.size(), value);
-    if (ec != std::errc{} || value < 0) return -1;
-
-    return value;
-}
-
 void HttpConnection::OnReadable() {
-    static constexpr size_t kMaxBufferSize = 8 * 1024 * 1024; // 8 MB hard cap
 
-    // ── Phase 1: Drain the socket ────────────────────────────────────────────
-    char tmp[4096];
+    // ── Phase 1: Drain the socket into the buffer ────────────────────────────
     while (true) {
-        ssize_t n = recv(GetSocketFD(), tmp, sizeof(tmp), 0);
-        if (n <= 0) break;
+        size_t old_size = read_buffer_.size();
+        read_buffer_.resize(old_size + MAX_READ_CHUNK_SIZE);
 
-        // Reject before inserting — prevents the addition itself from wrapping
-        if (read_buffer_.size() + static_cast<size_t>(n) > kMaxBufferSize) {
-            // Close();
+        ssize_t bytes_read = recv(GetSocketFD(), read_buffer_.data() + old_size, MAX_READ_CHUNK_SIZE, 0);
+
+        if (bytes_read == -1) {
+            read_buffer_.resize(old_size); // undo the speculative resize
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                break; // No more data right now
+            else {
+                perror("HttpConnection::OnReadable recv");
+                return;
+            }
+        }
+
+        if (bytes_read == 0) {
+            // Client closed the connection
+            read_buffer_.resize(old_size);
             return;
         }
-        read_buffer_.insert(read_buffer_.end(), tmp, tmp + n);
+
+        read_buffer_.resize(old_size + bytes_read);
     }
 
-    // ── Phase 2: Parse complete requests via consume offset ──────────────────
-    //
-    // Advancing an offset and doing one erase at the end keeps this O(n)
-    // over the whole call rather than O(n*m) with per-request front-erase.
-    size_t consume_offset = 0;
+    // ── Phase 2: Check if we have a complete HTTP request ───────────────────
+    // A complete request requires at minimum a full header block
+    std::string_view raw(read_buffer_.data(), read_buffer_.size());
 
-    while (true) {
-        // View into the unconsumed portion — no copies
-        std::span<const char> buf(read_buffer_.data() + consume_offset,
-                                  read_buffer_.size()  - consume_offset);
+    size_t header_end = raw.find("\r\n\r\n");
+    if (header_end == std::string_view::npos)
+        return; // Haven't received full headers yet — wait for more data
 
-        // 1. Do we have a complete header block yet?
-        int body_start_raw = find_end_of_one_http_request(buf);
-        if (body_start_raw < 0) break;
-        auto body_start = static_cast<size_t>(body_start_raw);
+    // Check Content-Length to see if we also have the full body
+    size_t body_start = header_end + 4; // skip past the "\r\n\r\n"
+    size_t content_length = 0;
 
-        // 2. Reject chunked encoding rather than silently mishandling it
-        // if (is_chunked(buf.subspan(0, body_start))) { Close(); return; }
+    std::string_view header_section = raw.substr(0, header_end);
+    size_t cl_pos = header_section.find("Content-Length:");
+    if (cl_pos == std::string_view::npos)
+        cl_pos = header_section.find("content-length:"); // case fallback
 
-        // 3. Parse Content-Length from the header span only —
-        //    the helper never sees the body, so it can't be confused by
-        //    a body that happens to contain "Content-Length: ..." text.
-        int content_length_raw = parse_content_length(buf.subspan(0, body_start));
-        if (content_length_raw < 0) {
-            // Missing or malformed — can't determine request boundary
-            // Close();
-            return;
-        }
-        auto content_length = static_cast<size_t>(content_length_raw);
-
-        // 4. Overflow guard before the addition.
-        //    Without this a crafted Content-Length wraps total_len to a small
-        //    number, bypassing the completeness check below.
-        if (content_length > kMaxBufferSize - body_start) {
-            // Close();
-            return;
-        }
-        size_t total_len = body_start + content_length;
-
-        // 5. Completeness check — both operands are size_t, no signed promotion
-        if (buf.size() < total_len) break;
-
-        // 6. Parse and dispatch — span subspan avoids a copy until Parse() needs it
-        HttpRequest http_request = Parse(std::vector<char>(buf.begin(), buf.begin() + total_len));
-        HandleRead(http_request);
-
-        consume_offset += total_len;
+    if (cl_pos != std::string_view::npos) {
+        size_t val_start = header_section.find_first_not_of(" \t", cl_pos + 15);
+        size_t val_end   = header_section.find("\r\n", val_start);
+        std::string_view cl_str = header_section.substr(val_start, val_end - val_start);
+        std::from_chars(cl_str.data(), cl_str.data() + cl_str.size(), content_length);
     }
 
-    // 7. Single O(remaining) erase for all consumed requests
-    if (consume_offset > 0) {
-        read_buffer_.erase(read_buffer_.begin(),
-                           read_buffer_.begin() + static_cast<std::ptrdiff_t>(consume_offset));
-    }
+    if (read_buffer_.size() < body_start + content_length)
+        return; // Body not fully received yet — wait for more data
+
+    // ── Phase 3: We have a complete request — parse and handle it ───────────
+    std::vector<char> complete_request(read_buffer_.begin(),
+                                       read_buffer_.begin() + body_start + content_length);
+
+    // Consume the request from the buffer (supports pipelining)
+    read_buffer_.erase(read_buffer_.begin(),
+                       read_buffer_.begin() + body_start + content_length);
+
+    HttpRequest request = Parse(complete_request);
+    HandleRead(std::move(request));
 }
 
 //Handles the full request

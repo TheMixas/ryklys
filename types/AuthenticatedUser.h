@@ -5,6 +5,7 @@
 #ifndef RYKLYS_BACKEND_AUTHENTICATEDUSER_H
 #define RYKLYS_BACKEND_AUTHENTICATEDUSER_H
 // Used for passing authenticated user info to route handlers without exposing unrelated data
+// Also used to send to clients (e.g sending after login)
 struct AuthenticatedUser {
     int id;
     std::string username;
