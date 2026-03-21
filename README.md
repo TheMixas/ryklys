@@ -1,3 +1,4 @@
+[![Backend CI](https://github.com/themixas/ryklys/actions/workflows/ci.yml/badge.svg)](https://github.com/themixas/ryklys/actions/workflows/ci.yml)
 # Ryklys 🦈
 
 High performance browser live streaming platform. Most infrastructure is built from scratch with minimal dependencies.
