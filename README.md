@@ -7,13 +7,20 @@ High performance browser live streaming platform. Most infrastructure is built f
 
 🔥Ryklys (Lithuanian for "shark") is an ambitious learning project aimed at delivering a high-performance, browser-based live streaming platform. Ryklys focuses on building core infrastructure from the ground up, minimizing external dependencies to achieve knowlege, superior control, optimization, and efficiency.
 
-## Key Features & Benefits
-
-*   **High Performance**: Epoll, thread pools.
-*   **Minimal Dependencies**: Utilizes only a few dependencies such as libqxx and nlohmann/json.
-*   **Built From Scratch**: Http 1.1, Websockets, JWT encoding & decoding are custom-built, allowing for deep optimization specific to live streaming needs.
-*   **Browser-Native Streaming**: Designed to integrate seamlessly with modern web browsers.
-*   **Dockerized Deployment**: Easy to deploy and manage using Docker and Docker Compose, ensuring consistent environments.
+## 🗺️ Project Status & Roadmap
+* **Docker**  ✔️
+* **Github actions**  ✔️
+* **Epoll & Efficient Thread Pool Based Architecture**  ✔️
+* **HTTP 1.1 & Websockets built from SCRATCH**  ✔️ a unique learning experience.
+* **CORS, JWT encoding & decoding, password hashing, .enf file managment built from SCRATCH**  ✔️
+* **User authentication featuring secure JWT cookies**  ✔️
+* **Postgress integration via libpqxx**  ✔️
+* **Efficient and thread safe postgress connection pool**  ✔️ 
+* **WebRTC Streaming Integration With Frontend** 🚧 current stage: signaling
+* **Streamer Chat Room** 🔜
+* **User Profiles** 🔜
+* **LiveStream discoverability** 🔜
+---
 
 ## Installation & Setup
 
