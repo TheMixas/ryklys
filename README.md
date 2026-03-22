@@ -5,7 +5,7 @@ High performance browser live streaming platform. Most infrastructure is built f
 
 ## Project Overview
 
-Ryklys (Lithuanian for "shark") is an ambitious learning project aimed at delivering a high-performance, browser-based live streaming platform. Ryklys focuses on building core infrastructure from the ground up, minimizing external dependencies to achieve knowlege, superior control, optimization, and efficiency.
+🔥Ryklys (Lithuanian for "shark") is an ambitious learning project aimed at delivering a high-performance, browser-based live streaming platform. Ryklys focuses on building core infrastructure from the ground up, minimizing external dependencies to achieve knowlege, superior control, optimization, and efficiency.
 
 ## Key Features & Benefits
 
