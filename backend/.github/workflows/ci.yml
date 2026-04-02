@@ -1,0 +1,30 @@
+
+name: Backend Docker CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+jobs:
+  docker-check:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Grab code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+          # 2. Set up Docker's modern build engine (faster caching)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+          
+          # 3. Build the Dockerfile you already wrote!
+      - name: Build Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false # Set to false because we just want to prove it builds, not publish it anywhere yet
+          tags: backend-backend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

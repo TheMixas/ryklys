@@ -1,0 +1,27 @@
+{
+	admin off
+}
+
+(backends) {
+	to localhost:3001 localhost:3002
+}
+
+:8080 {
+	# WebSocket routes — sticky sessions
+	handle /sig* {
+		reverse_proxy localhost:3001 localhost:3002 {
+			lb_policy cookie ws_sticky
+		}
+	}
+
+	handle /ws* {
+		reverse_proxy localhost:3001 localhost:3002 {
+			lb_policy cookie ws_sticky
+		}
+	}
+
+	# Everything else — round-robin
+	handle {
+		reverse_proxy localhost:3001 localhost:3002
+	}
+}
