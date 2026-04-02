@@ -1,0 +1,45 @@
+# ========================
+# Backend (C++)
+# ========================
+backend/cmake-build-debug/
+backend/cmake-build-release/
+backend/build/
+backend/.cache/
+backend/.idea/
+backend/*.o
+backend/*.so
+backend/*.a
+backend/*.out
+
+# Backend env
+backend/.env
+
+# Recordings / stream segments (runtime data)
+backend/recordings/
+
+# libpqxx build artifacts
+backend/libpqxx/build/
+
+# ========================
+# Frontend (React/Vite)
+# ========================
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Frontend env
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# ========================
+# System / Editor
+# ========================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.log
