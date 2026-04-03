@@ -11,7 +11,9 @@ services:
       SERVER_PORT: "3001"
       SERVER_HOST: "0.0.0.0"
       STREAM_POCKET_SERVER_HOST: "0.0.0.0"
+      STREAM_POCKET_UPLOAD_URL: "http://localhost:7070"
       STREAM_POCKET_SERVER_PORT: "7070"
+      STREAM_POCKET_SERVER_SECRET: "123"
       DB_HOST: db
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -32,6 +34,7 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-postgres}"]
       interval: 5s

@@ -16,14 +16,14 @@
         }
     }
 
+    # StreamPocket segments — BEFORE the general /api/* catch-all
+    handle /api/segments/* {
+        reverse_proxy localhost:7070
+    }
+
     # API routes
     handle /api/* {
         reverse_proxy localhost:3001
-    }
-
-    # StreamPocket segments
-    handle /api/segments/* {
-        reverse_proxy localhost:7070
     }
 
     # Frontend — serve static files

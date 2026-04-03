@@ -1,15 +1,10 @@
 # Ryklys
 
-**A live streaming platform built from scratch - no frameworks, no shortcuts.**
+**A live streaming platform built from scratch — no frameworks, no shortcuts.**
 
 ![Ryklys Demo](docs/demo.gif)
 
 Stream directly from your browser to an audience in real time. No OBS, no downloads. Just open Ryklys, go live, and your viewers are watching within seconds.
-
-<!-- Replace these with your actual screenshots/demo -->
-<!-- ![Ryklys Demo](docs/demo.gif) -->
-<!-- ![Stream View](docs/screenshot-viewer.png) -->
-<!-- ![Dashboard](docs/screenshot-dashboard.png) -->
 
 ## What makes this different
 
@@ -31,7 +26,7 @@ Browser (Streamer)                        Browser (Viewer)
              │                        │
      ┌───────▼───────┐       ┌───────▼───────┐
      │   Backend A   │       │   Backend B   │
-     │   (C++ / :3001)│       │   (C++ / :3002)│
+     │  (C++ / :3001)│       │  (C++ / :3002)│
      └───┬───┬───┬───┘       └───┬───┬───┬───┘
          │   │   │               │   │   │
          │   │   └──────┬────────┘   │   │
@@ -60,7 +55,7 @@ Browser (Streamer)                        Browser (Viewer)
 - StreamPocket — a custom HLS segment storage and delivery server
 
 **Infrastructure:**
-- C++17 backend on Linux
+- C++20 backend on Linux
 - React + TypeScript + Vite frontend
 - PostgreSQL for users and stream metadata
 - Redis for pub/sub chat, viewer tracking, and multi-node coordination
@@ -79,6 +74,81 @@ Browser (Streamer)                        Browser (Viewer)
 - **Stream history** — browse your past streams with duration and metadata
 - **Stream browsing** — discover who's live and jump into any stream
 
+## Getting Started
+
+### Docker (recommended)
+
+The fastest way to run everything. Just Docker — no other dependencies needed.
+
+```bash
+git clone https://github.com/TheMixas/ryklys.git
+cd ryklys
+docker compose up --build
+```
+
+Open `http://localhost:8080` — that's it. Caddy serves the frontend and proxies the backend, StreamPocket, and WebSocket connections through a single port.
+
+To tear down and reset the database:
+
+```bash
+docker compose down -v
+```
+
+### Local Development
+
+For active development where you want hot reload on the frontend and quick rebuilds on the backend.
+
+**Prerequisites:** C++20 compiler (GCC 11+ or Clang 14+), CMake 3.20+, Node.js 18+, PostgreSQL, Redis, FFmpeg, Caddy
+
+**1. Database setup:**
+
+```bash
+# Start PostgreSQL and Redis (or use your existing instances)
+sudo systemctl start postgresql redis
+
+# Create the tables
+psql -U postgres -d postgres -f backend/init.sql
+```
+
+**2. Backend:**
+
+```bash
+cd backend
+cp .env.example .env          # edit with your DB/Redis connection details
+
+cmake -B cmake-build-debug
+cmake --build cmake-build-debug
+
+./cmake-build-debug/ryklys_backend
+```
+
+StreamPocket starts as a separate binary (built automatically by CMake):
+
+```bash
+./cmake-build-debug/stream-pocket/stream_pocket
+```
+
+**3. Frontend:**
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend dev server runs on `http://localhost:5173` with hot reload.
+
+**4. Multi-node with Caddy (optional):**
+
+```bash
+cd backend
+SERVER_PORT=3001 ./cmake-build-debug/ryklys_backend &
+SERVER_PORT=3002 ./cmake-build-debug/ryklys_backend &
+caddy run --config Caddyfile
+```
+
+All traffic goes through `http://localhost:8080`. Caddy handles round-robin for API routes and sticky sessions for WebSocket connections.
+
 ## Project Structure
 
 ```
@@ -94,55 +164,28 @@ ryklys/
 │   │   ├── stream-route/           # Go live, stream management
 │   │   └── viewer-route/           # Viewer WebSocket, chat
 │   ├── services/                   # ChatRelay, RedisClient, ViewerRegistry
-│   ├── database/                   # PostgreSQL repositories
+│   ├── database/                   # PostgreSQL repositories and migrations
 │   ├── stream-pocket/              # HLS segment storage server
 │   ├── pg-connection-pool/         # Custom PostgreSQL connection pool
 │   ├── include/                    # Thread pool, external headers
+│   ├── init.sql                    # Database schema
+│   ├── .env.example                # Environment variable template
 │   ├── CMakeLists.txt
-│   ├── Dockerfile
-│   └── Caddyfile
+│   ├── Caddyfile                   # Local dev reverse proxy config
+│   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/                  # Landing, browse, stream view, dashboard
-│   │   ├── components/             # Navbar, UI components
+│   │   ├── app/routes/             # Landing, browse, stream view, dashboard
+│   │   ├── components/             # Navbar, ChatPanel, RequireAuth
 │   │   ├── hooks/                  # Auth context, custom hooks
+│   │   ├── features/               # Stream capture, scene management
 │   │   └── config/                 # Environment, paths
 │   ├── package.json
 │   └── vite.config.ts
 ├── docker-compose.yml
+├── Dockerfile
+├── docker-entrypoint.sh
 └── README.md
-```
-
-## Running Locally
-
-**Prerequisites:** C++17 compiler, CMake, Node.js 18+, PostgreSQL, Redis, FFmpeg
-
-**Backend:**
-```bash
-cd backend
-cp .env.example .env          # configure your DB and Redis connection
-cmake -B build && cmake --build build
-./build/ryklys_backend
-```
-
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-**With Docker:**
-```bash
-docker-compose up
-```
-
-**Multi-node (with Caddy):**
-```bash
-cd backend
-SERVER_PORT=3001 ./build/ryklys_backend &
-SERVER_PORT=3002 ./build/ryklys_backend &
-caddy run --config Caddyfile
 ```
 
 ## Roadmap

@@ -19,7 +19,7 @@ add_executable(stream_pocket
 )
 
 target_include_directories(stream_pocket PRIVATE
-        ${CMAKE_SOURCE_DIR}/..          # project root (for config/, types/, etc)
+        ${CMAKE_SOURCE_DIR}             # backend root (for config/, types/, etc)
         ${ZVEJYS_DIR}                   # ZvejysServer headers
 )
 

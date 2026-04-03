@@ -4,11 +4,10 @@
 
 #include "StorageConfig.h"
 #include "ZvejysServer.h"
-#include "backend/include/ptsouchlos_thread-pool/thread_pool.h"
 #include "env/EnvConfig.h"
 #include "routes/health-route/HealthRoutes.h"
 #include "routes/segments-route/SegmentsRoutes.h"
-#include "./include/ptsouchlos_thread-pool/thread_pool.h"
+#include "../include/ptsouchlos_thread-pool/thread_pool.h"
 const int MAX_EVENT_BATCH = 64; // Maximum number of epoll events to process in one batch
 int threadPoolSize = std::thread::hardware_concurrency() * 2;
 static dp::thread_pool appThreadPool(threadPoolSize);

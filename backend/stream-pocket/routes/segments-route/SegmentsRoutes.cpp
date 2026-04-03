@@ -8,8 +8,7 @@
 #include "HttpResponse.h"
 #include "ZvejysServer.h"
 #include "env/EnvConfig.h"
-#include "./backend/stream-pocket/StorageConfig.h"
-
+#include "../../StorageConfig.h"
 void RegisterSegmentRoutes(ZvejysServer& server)
 {
     server.RegisterRoute(HttpMethod::GET, "/api/segments/{streamId}/{filename}",

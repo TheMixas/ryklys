@@ -134,6 +134,8 @@ static std::optional<AuthenticatedUser> ExtractAuthenticatedUserFromRequest(cons
     ServiceLocator::SetUserRepository(&userRepository);
     ServiceLocator::SetStreamRepository(&streamRepository);
     ServiceLocator::SetChatRepository(&chatRepository);
+    std::cout << "[DEBUG] REDIS_HOST=" << env.Get("REDIS_HOST", "NOT_SET") << std::endl;
+    std::cout << "[DEBUG] REDIS_PORT=" << env.Get("REDIS_PORT", "NOT_SET") << std::endl;
     std::string redisHost = env.Get("REDIS_HOST", "127.0.0.1");
     std::string redisPort = env.Get("REDIS_PORT", "6379");
     static RedisClient redisClient(redisHost, redisPort);

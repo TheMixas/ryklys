@@ -8,7 +8,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-
+#include <netdb.h>
 class RedisClient {
 public:
     RedisClient(const std::string& host, int port)
@@ -24,19 +24,31 @@ public:
     }
 
     bool connect() {
-        fd_ = socket(AF_INET, SOCK_STREAM, 0);
-        if (fd_ < 0) return false;
+        struct addrinfo hints{}, *res;
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
 
-        sockaddr_in addr{};
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(port_);
-        inet_pton(AF_INET, host_.c_str(), &addr.sin_addr);
-
-        if (::connect(fd_, (sockaddr*)&addr, sizeof(addr)) < 0) {
-            close(fd_);
-            fd_ = -1;
+        int err = getaddrinfo(host_.c_str(), std::to_string(port_).c_str(), &hints, &res);
+        if (err != 0) {
+            std::cerr << "[Redis] DNS resolve failed for " << host_ << ": " << gai_strerror(err) << std::endl;
             return false;
         }
+
+        fd_ = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+        if (fd_ < 0) {
+            freeaddrinfo(res);
+            return false;
+        }
+
+        if (::connect(fd_, res->ai_addr, res->ai_addrlen) < 0) {
+            std::cerr << "[Redis] Connect failed to " << host_ << ":" << port_ << std::endl;
+            close(fd_);
+            fd_ = -1;
+            freeaddrinfo(res);
+            return false;
+        }
+
+        freeaddrinfo(res);
         return true;
     }
 

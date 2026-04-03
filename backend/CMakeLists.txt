@@ -4,20 +4,7 @@ project(ryklys_backend)
 set(CMAKE_CXX_STANDARD 20)
 find_package(libpqxx REQUIRED)
 find_package(OpenSSL REQUIRED)
-#include(FetchContent)
-#
-#FetchContent_Declare(
-#        libdatachannel
-#        GIT_REPOSITORY https://github.com/paullouisageneau/libdatachannel.git
-#        GIT_TAG        master          #
-#        GIT_SUBMODULES_RECURSE TRUE    # pulls in libjuice, libsrtp, etc.
-#)
-#
-#set(USE_GNUTLS  OFF CACHE BOOL "" FORCE)
-#set(USE_NICE    OFF CACHE BOOL "" FORCE)
-#set(NO_MEDIA    OFF  CACHE BOOL "" FORCE)
-#
-#FetchContent_MakeAvailable(libdatachannel)
+
 find_package(LibDataChannel REQUIRED)
 set(PQXX /usr/local/include/pqxx)
 
@@ -77,29 +64,14 @@ add_executable(ryklys_backend main.cpp
         routes/health-route/HealthRoutes.h
 )
 target_compile_definitions(ryklys_backend PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
-#add_subdirectory(include/libpqxx build-pqxx)
-#target_link_libraries(ryklys_backend     PRIVATE crypt pqxx)
-#find_package(libpqxx REQUIRED)
-#
-#find_library(PQXX_LIB pqxx)
-##find_library(PQ_LIB pq)
-#
-#message(STATUS "PQXX_LIB: ${PQXX_LIB}")
-#message(STATUS "PQ_LIB: ${PQ_LIB}")
-#target_link_libraries(ryklys_backend crypt ${PQXX_LIB} ${PQ_LIB} LibDataChannel::LibDataChannel)
 find_package(CURL REQUIRED)
 target_link_libraries(ryklys_backend crypt libpqxx::pqxx LibDataChannel::LibDataChannel CURL::libcurl)
 
-# --- FFmpeg Dependency Check ---
-# Ask the OS where the ffmpeg executable is located
 find_program(FFMPEG_EXECUTABLE ffmpeg)
 
-# If it can't find it, kill the build process and tell the developer what to do
 if(NOT FFMPEG_EXECUTABLE)
-    message(FATAL_ERROR "FFmpeg is required but was not found on this system! \n"
-            "Please install it before building:\n"
-            "Ubuntu/Debian: sudo apt install ffmpeg\n"
-            "macOS: brew install ffmpeg")
+    message(WARNING "FFmpeg was not found. It is required at runtime, not build time.\n"
+            "Make sure FFmpeg is installed in your runtime environment.")
 else()
     message(STATUS "Found FFmpeg: ${FFMPEG_EXECUTABLE}")
 endif()

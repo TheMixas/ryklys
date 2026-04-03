@@ -218,13 +218,12 @@ std::shared_ptr<StreamerSession> createPeerConnection(rtc::Configuration config,
     auto session = std::make_shared<StreamerSession>(config, streamId, "./recordings");
     auto pc = session->pc;
 
-    std::string streamPocketHost = EnvConfig::Instance().Get("STREAM_POCKET_SERVER_HOST", "localhost");
-    std::string streamPocketPort = EnvConfig::Instance().Get("STREAM_POCKET_SERVER_PORT", "7070");
+    std::string streamPocketUrl = EnvConfig::Instance().Get("STREAM_POCKET_UPLOAD_URL", "http://localhost:7070");
     std::string streamPocketSecret = EnvConfig::Instance().Get("STREAM_POCKET_SERVER_SECRET", "123");
     // Set up segment uploader
     session->uploader = std::make_shared<SegmentUploader>(
-        "http://" + streamPocketHost + ":" + streamPocketPort, // Stream pocket url
-        streamPocketSecret // StreamPocket`s secret for auth
+        streamPocketUrl,
+        streamPocketSecret
     );
     session->startSegmentUploader();
 

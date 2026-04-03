@@ -12,7 +12,8 @@ RUN apk update && \
         postgresql-dev \
         linux-headers \
         openssl-dev \
-        curl-dev
+        curl-dev \
+        ffmpeg
 
 # Build libpqxx 8.x from source
 RUN git clone --branch 8.0.0 --depth 1 https://github.com/jtv/libpqxx.git /tmp/libpqxx && \
@@ -71,8 +72,7 @@ COPY --from=backend-build /usr/local/lib/libpqxx*          /usr/local/lib/
 COPY --from=backend-build /usr/local/lib/libdatachannel*   /usr/local/lib/
 COPY --from=backend-build /usr/local/lib/libjuice*         /usr/local/lib/
 COPY --from=backend-build /app/build/ryklys_backend        /usr/local/bin/ryklys_backend
-COPY --from=backend-build /app/build/stream_pocket         /usr/local/bin/stream_pocket
-
+COPY --from=backend-build /app/build/stream-pocket/stream_pocket  /usr/local/bin/stream_pocket
 # Copy frontend build
 COPY --from=frontend-build /app/dist /srv/frontend
 
@@ -81,7 +81,8 @@ COPY backend/Caddyfile /etc/caddy/Caddyfile
 
 # Copy entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh
 
 RUN ldconfig /usr/local/lib || true
 RUN mkdir -p /app/recordings
