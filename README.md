@@ -13,11 +13,9 @@ Stream directly from your browser to an audience in real time. No OBS, no downlo
 
 ## What makes this different
 
-Most streaming platforms are built on top of media servers like Nginx-RTMP, Wowza, or off-the-shelf WebRTC SFUs. Ryklys isn't.
-
 The entire backend — HTTP server, WebSocket handler, connection pool, stream pipeline — is **written from scratch in C++** using raw Linux sockets and epoll. The frontend captures your camera/screen via WebRTC, sends it to the backend, which pipes it through FFmpeg into HLS segments and delivers them to viewers. Chat runs over Redis Pub/Sub across multiple nodes.
 
-**Nothing here is a wrapper around someone else's library doing the hard work.** The HTTP server parses requests, routes them, handles CORS, manages cookies, and upgrades WebSocket connections — all custom. The connection pool, thread pool, JWT auth, and service locator are all hand-rolled.
+The custom HTTP server parses requests, routes them, handles CORS, manages cookies, and upgrades WebSocket connections — all custom. The connection pool, thread pool, JWT auth, and service locator are all hand-rolled.
 
 ## Architecture
 
