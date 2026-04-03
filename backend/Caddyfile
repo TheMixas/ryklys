@@ -1,27 +1,35 @@
 {
-	admin off
-}
-
-(backends) {
-	to localhost:3001 localhost:3002
+    admin off
 }
 
 :8080 {
-	# WebSocket routes — sticky sessions
-	handle /sig* {
-		reverse_proxy localhost:3001 localhost:3002 {
-			lb_policy cookie ws_sticky
-		}
-	}
+    # WebSocket routes — sticky sessions
+    handle /sig* {
+        reverse_proxy localhost:3001 {
+            lb_policy cookie ws_sticky
+        }
+    }
 
-	handle /ws* {
-		reverse_proxy localhost:3001 localhost:3002 {
-			lb_policy cookie ws_sticky
-		}
-	}
+    handle /ws* {
+        reverse_proxy localhost:3001 {
+            lb_policy cookie ws_sticky
+        }
+    }
 
-	# Everything else — round-robin
-	handle {
-		reverse_proxy localhost:3001 localhost:3002
-	}
+    # API routes
+    handle /api/* {
+        reverse_proxy localhost:3001
+    }
+
+    # StreamPocket segments
+    handle /api/segments/* {
+        reverse_proxy localhost:7070
+    }
+
+    # Frontend — serve static files
+    handle {
+        root * /srv/frontend
+        file_server
+        try_files {path} /index.html
+    }
 }
