@@ -1,6 +1,6 @@
 # Ryklys
 
-**A live streaming platform built from scratch — no frameworks, no shortcuts.**
+**A live streaming platform built from scratch - no frameworks, no shortcuts.**
 
 ![Ryklys Demo](docs/demo.gif)
 
