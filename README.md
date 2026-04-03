@@ -2,6 +2,8 @@
 
 **A live streaming platform built from scratch — no frameworks, no shortcuts.**
 
+![Ryklys Demo](docs/demo.gif)
+
 Stream directly from your browser to an audience in real time. No OBS, no downloads. Just open Ryklys, go live, and your viewers are watching within seconds.
 
 <!-- Replace these with your actual screenshots/demo -->

@@ -186,7 +186,7 @@ export function useLiveStream(options: UseStreamOptions): UseStreamReturn {
                     } catch (e) {
                         console.warn("Failed to generate keyframe:", e);
                     }
-                }, 2000); // Every 2 seconds — ensures HLS can cut storage at ~4s
+                }, 1000);
 
                 // Clean up on close
 

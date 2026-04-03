@@ -348,36 +348,41 @@ std::shared_ptr<StreamerSession> createPeerConnection(rtc::Configuration config,
                         std::string outputPath = session->outputDirectory + "/" + session->streamId + "/" +
                             session->streamId + session->outputFormat;
                         // std::string ffmpegCmd =
-                        //         "ffmpeg -hide_banner -loglevel info "
-                        //         "-protocol_whitelist file,udp,rtp "
-                        //         "-analyzeduration 60000000 "
-                        //         "-probesize 100000000 "
-                        //         "-fflags +genpts+discardcorrupt "
-                        //         "-i " + sdpFilename + " "
-                        //         "-c:v libx264 -preset ultrafast -tune zerolatency "
-                        //         "-g 120 " // Keyframe every 120 frames (2s at 60fps)
-                        //         "-force_key_frames \"expr:gte(t,n_forced*4)\" "
-                        //         // Force keyframe every 4s to match hls_time
-                        //         "-an "
-                        //         "-f hls -hls_time 4 -hls_list_size 5 "
-                        //         "-hls_flags delete_segments "
-                        //         "-y " + outputPath;
+                        //     "ffmpeg -hide_banner -loglevel info "
+                        //     "-protocol_whitelist file,udp,rtp "
+                        //     "-analyzeduration 60000000 "
+                        //     "-probesize 100000000 "
+                        //     "-fflags +genpts+discardcorrupt "
+                        //     "-use_wallclock_as_timestamps 1 " // real-time input pacing
+                        //     "-i " + sdpFilename + " "
+                        //     "-c:v libx264 -preset ultrafast -tune zerolatency "
+                        //     "-crf 23 "
+                        //     "-r 30 "
+                        //     "-g 60 -keyint_min 60 "
+                        //     "-force_key_frames \"expr:gte(t,n_forced*4)\" "
+                        //     "-an "
+                        //     "-f hls -hls_time 4 -hls_list_size 5 "
+                        //     "-hls_flags delete_segments "
+                        //     "-flush_packets 1 "
+                        //     "-y " + outputPath;
                         std::string ffmpegCmd =
                             "ffmpeg -hide_banner -loglevel info "
                             "-protocol_whitelist file,udp,rtp "
-                            "-analyzeduration 60000000 "
-                            "-probesize 100000000 "
-                            "-fflags +genpts+discardcorrupt "
-                            "-use_wallclock_as_timestamps 1 " // real-time input pacing
+                            "-analyzeduration 2000000 " // 2s
+                            "-probesize 1000000 " // was 100000000 — 1MB is enough for RTP
+                            "-fflags +genpts+discardcorrupt+nobuffer " // added +nobuffer
+                            "-flags low_delay " // NEW — tell decoder to minimize delay
+                            "-use_wallclock_as_timestamps 1 "
                             "-i " + sdpFilename + " "
                             "-c:v libx264 -preset ultrafast -tune zerolatency "
                             "-crf 23 "
                             "-r 30 "
-                            "-g 60 -keyint_min 60 "
-                            "-force_key_frames \"expr:gte(t,n_forced*4)\" "
+                            "-g 30 -keyint_min 30 " // was 60 — keyframe every 1s at 30fps
                             "-an "
-                            "-f hls -hls_time 4 -hls_list_size 5 "
-                            "-hls_flags delete_segments "
+                            "-f hls "
+                            "-hls_time 1 " // 1 second segments
+                            "-hls_list_size 3 " //keep 3 segments
+                            "-hls_flags delete_segments+append_list "
                             "-flush_packets 1 "
                             "-y " + outputPath;
                         session->ffmpegProcess = popen(ffmpegCmd.c_str(), "w");
@@ -545,22 +550,25 @@ void RegisterStreamerRoutes(ZvejysServer& server)
             });
         });
     server.RegisterAuthenticatedRoute(HttpMethod::GET, "/api/users/me/streams",
-    [](const HttpRequest &request, const AuthenticatedUser &authUser) -> HttpResponse {
-        std::cout << "[ME/STREAMS] Fetching stream history for user ID=" << authUser.id << std::endl;
-        auto streamRepo = ServiceLocator::GetStreamRepository();
-        auto streams = streamRepo.GetHistoryByUserId(authUser.id);
+                                      [](const HttpRequest& request, const AuthenticatedUser& authUser) -> HttpResponse
+                                      {
+                                          std::cout << "[ME/STREAMS] Fetching stream history for user ID=" << authUser.
+                                              id << std::endl;
+                                          auto streamRepo = ServiceLocator::GetStreamRepository();
+                                          auto streams = streamRepo.GetHistoryByUserId(authUser.id);
 
-        std::string json = "[";
-        for (size_t i = 0; i < streams.size(); i++) {
-            if (i > 0) json += ",";
-            json += "{\"id\":\"" + streams[i].id+ "\""
-                  + ",\"title\":\"" + streams[i].title + "\""
-                  + ",\"status\":\"" + streams[i].status + "\""
-                  + ",\"started_at\":\"" + streams[i].started_at+ "\""
-                  + ",\"ended_at\":\"" + streams[i].ended_at.value() + "\"}";
-        }
-        json += "]";
+                                          std::string json = "[";
+                                          for (size_t i = 0; i < streams.size(); i++)
+                                          {
+                                              if (i > 0) json += ",";
+                                              json += "{\"id\":\"" + streams[i].id + "\""
+                                                  + ",\"title\":\"" + streams[i].title + "\""
+                                                  + ",\"status\":\"" + streams[i].status + "\""
+                                                  + ",\"started_at\":\"" + streams[i].started_at + "\""
+                                                  + ",\"ended_at\":\"" + streams[i].ended_at.value() + "\"}";
+                                          }
+                                          json += "]";
 
-        return HttpResponse::Json(json);
-    });
+                                          return HttpResponse::Json(json);
+                                      });
 }

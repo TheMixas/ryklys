@@ -1,7 +1,9 @@
-import * as Dialog from '@radix-ui/react-dialog';
-import {Flex, Button, Text} from '@radix-ui/themes';
-import {ChevronDownIcon} from '@radix-ui/react-icons';
-import './StreamCaptureEditPopup.css';
+import {
+    Flex, Button, Text, Heading, Box, Badge, Separator, Dialog
+} from '@radix-ui/themes';
+import {
+    VideoIcon, ImageIcon, SpeakerLoudIcon, CheckIcon
+} from '@radix-ui/react-icons';
 import {type VisualCapture, VideoCapture} from "@/features/stream/models/VisualCapture.ts";
 import type {AudioCapture} from "@/features/stream/models/AudioCapture.ts";
 
@@ -11,10 +13,65 @@ interface StreamCaptureEditPopupProps {
     videoCaptures: VideoCapture[];
     imageCaptures: VisualCapture[];
     audioCaptures: AudioCapture[];
-    setVideoElement: (slot: number, videoElement: HTMLVideoElement) => void
-    setImageElement: (slot: number, imageElement: HTMLImageElement) => void
-    setAudioStream: (slot: number, stream: MediaStream) => void
+    setVideoElement: (slot: number, videoElement: HTMLVideoElement) => void;
+    setImageElement: (slot: number, imageElement: HTMLImageElement) => void;
+    setAudioStream: (slot: number, stream: MediaStream) => void;
 }
+
+interface SourceRowProps {
+    icon: React.ReactNode;
+    label: string;
+    detail: string;
+    hasSource: boolean;
+    buttonLabel: [string, string];
+    onSelect: () => void;
+}
+
+const SourceRow = ({icon, label, detail, hasSource, buttonLabel, onSelect}: SourceRowProps) => (
+    <Flex
+        align="center"
+        justify="between"
+        p="3"
+        style={{
+            background: 'var(--gray-3)',
+            borderRadius: 'var(--radius-2)',
+        }}
+    >
+        <Flex align="center" gap="3">
+            <Box
+                style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 'var(--radius-2)',
+                    background: hasSource ? 'var(--green-3)' : 'var(--gray-4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                }}
+            >
+                {hasSource
+                    ? <CheckIcon width={16} height={16} color="var(--green-11)"/>
+                    : icon
+                }
+            </Box>
+            <Flex direction="column" gap="0">
+                <Text size="2" weight="bold">{label}</Text>
+                <Text size="1" color="gray">{detail}</Text>
+            </Flex>
+        </Flex>
+        <Flex align="center" gap="2">
+            {hasSource && <Badge color="green" size="1" radius="full">Active</Badge>}
+            <Button
+                size="1"
+                variant={hasSource ? 'soft' : 'solid'}
+                onClick={onSelect}
+            >
+                {hasSource ? buttonLabel[1] : buttonLabel[0]}
+            </Button>
+        </Flex>
+    </Flex>
+);
 
 const StreamCaptureEditPopup = ({
                                     isOpen,
@@ -27,188 +84,149 @@ const StreamCaptureEditPopup = ({
                                     setAudioStream
                                 }: StreamCaptureEditPopupProps) => {
 
-    const handleConfirm = () => {
-        onOpenChange(false);
+    const selectScreen = async (index: number) => {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+            video: {frameRate: 60},
+            audio: true
+        });
+        const videoEl = document.createElement('video');
+        videoEl.srcObject = screenStream;
+        videoEl.muted = true;
+        videoEl.autoplay = true;
+        await new Promise<void>(resolve => {
+            videoEl.onloadeddata = () => resolve();
+            videoEl.play().catch(console.error);
+        });
+        setVideoElement(index, videoEl);
+    };
+
+    const selectImage = (index: number) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image must be under 5MB');
+                return;
+            }
+            const imgEl = new Image();
+            await new Promise<void>((resolve, reject) => {
+                imgEl.onload = () => resolve();
+                imgEl.onerror = reject;
+                imgEl.src = URL.createObjectURL(file);
+            });
+            setImageElement(index, imgEl);
+        };
+        input.click();
+    };
+
+    const selectAudio = async (index: number) => {
+        const audioStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: false
+        });
+        setAudioStream(index, audioStream);
     };
 
     return (
         <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
-            <Dialog.Portal>
-                <Dialog.Overlay className="StreamCaptureEditPopup__overlay"/>
-                <Dialog.Content className="StreamCaptureEditPopup__content">
-                    <div className="StreamCaptureEditPopup__header">
-                        <Dialog.Title className="StreamCaptureEditPopup__title">Stream Capture Settings</Dialog.Title>
-                        <Dialog.Close asChild>
-                            <button className="StreamCaptureEditPopup__close" aria-label="Close">
-                                ✕
-                            </button>
-                        </Dialog.Close>
-                    </div>
+            <Dialog.Content maxWidth="560px">
+                <Dialog.Title>Scene Setup</Dialog.Title>
+                <Dialog.Description size="2" color="gray" mb="4">
+                    Choose your video sources, images, and audio inputs.
+                </Dialog.Description>
 
-                    <Flex direction="column" gap="5" style={{padding: '20px 0'}}>
-                        Video Stream Select
-                        {
-                            videoCaptures.map((capture, index) => {
-                                return (
-                                    <Flex direction="column" gap="2">
-                                        <Text as="label" size="2" weight="bold" color={"gray"}>
-                                            {capture.position ? `Stream at (${capture.position.x}, ${capture.position.y})` : 'Video Stream'}
-                                        </Text>
-                                        <div className="StreamCaptureEditPopup__select-wrapper">
-                                            <button  className="StreamCaptureEditPopup__select"
-                                                    onClick={async () => {
-                                                        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-                                                            video: {frameRate: 60},
-                                                            audio: true
-                                                        });
+                <Separator size="4" mb="4"/>
 
-                                                        // ✅ Create a real video element
-                                                        const videoEl = document.createElement('video');
-                                                        videoEl.srcObject = screenStream;
-                                                        videoEl.muted = true;
-                                                        videoEl.autoplay = true;
-
-                                                        // Wait for it to have data before handing it off
-                                                        await new Promise<void>(resolve => {
-                                                            videoEl.onloadeddata = () => resolve();
-                                                            videoEl.play().catch(console.error);
-                                                        });
-
-                                                        setVideoElement(index, videoEl);
-                                                    }}>
-                                                {capture.getSourceElement() ? 'Change Stream' : 'Select Stream'}
-                                            </button>
-                                        </div>
-                                    </Flex>
-                                )
-                            })
-                        }
-                        {/* Audio Stream Select */}
-                        <Flex direction="column" gap="2">
-                            <Text as="label" size="2" weight="bold">
-                                Microphone
-                            </Text>
-                            <div className="StreamCaptureEditPopup__select-wrapper">
-                                {/*<select*/}
-                                {/*    value={selectedAudio}*/}
-                                {/*    onChange={(e) => handleAudioChange(e.target.value)}*/}
-                                {/*    className="StreamCaptureEditPopup__select"*/}
-                                {/*>*/}
-                                {/*    {audioDevices.length === 0 ? (*/}
-                                {/*        <option disabled>No microphones available</option>*/}
-                                {/*    ) : (*/}
-                                {/*        audioDevices.map(device => (*/}
-                                {/*            <option key={device.deviceId} value={device.deviceId}>*/}
-                                {/*                {device.label}*/}
-                                {/*            </option>*/}
-                                {/*        ))*/}
-                                {/*    )}*/}
-                                {/*</select>*/}
-                                <ChevronDownIcon className="StreamCaptureEditPopup__select-icon"/>
-                            </div>
-                        </Flex>
+                {/* Video Sources */}
+                <Flex direction="column" gap="3" mb="5">
+                    <Flex align="center" gap="2">
+                        <VideoIcon width={16} height={16} color="var(--accent-9)"/>
+                        <Heading size="3">Video Sources</Heading>
                     </Flex>
-                    <Flex direction="column" gap="5" style={{padding: '20px 0'}}>
-                        Image Select
-                        {
-                            imageCaptures.map((capture, index) => {
-                                return (
-                                    <Flex direction="column" gap="2">
-                                        <Text as="label" size="2" weight="bold" color={"gray"}>
-                                            {capture.position ? `Stream at (${capture.position.x}, ${capture.position.y})` : 'Video Stream'}
-                                        </Text>
-                                        <div className="StreamCaptureEditPopup__select-wrapper">
-                                            <button color={"red"} className="StreamCaptureEditPopup__select"
-                                                    onClick={() => {
-                                                        const input = document.createElement('input');
-                                                        input.type = 'file';
-                                                        input.accept = 'image/*';
-                                                        // input.onchange = async () => {
-                                                        //     const file = input.files?.[0];
-                                                        //     if (!file) return;
-                                                        //
-                                                        //     const bitmap = await createImageBitmap(file);
-                                                        //
-                                                        //     const MAX = 2096;
-                                                        //     const scale = Math.min(1, MAX / Math.max(bitmap.width, bitmap.height));
-                                                        //
-                                                        //     const canvas = document.createElement('canvas');
-                                                        //     canvas.width = Math.floor(bitmap.width * scale);
-                                                        //     canvas.height = Math.floor(bitmap.height * scale);
-                                                        //     canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-                                                        //     bitmap.close();
-                                                        //
-                                                        //     setImageElement(index, canvas);
-                                                        // };
-                                                        input.onchange = async () => {
-                                                            const file = input.files?.[0];
-                                                            if (!file) return;
-
-                                                            if (file.size > 5 * 1024 * 1024) {
-                                                                alert('Image must be under 5MB');
-                                                                return;
-                                                            }
-
-                                                            const imgEl = new Image();
-                                                            await new Promise<void>((resolve, reject) => {
-                                                                imgEl.onload = () => resolve();
-                                                                imgEl.onerror = reject;
-                                                                imgEl.src = URL.createObjectURL(file);
-                                                            });
-
-                                                            setImageElement(index, imgEl);
-                                                        };
-                                                        input.click();
-                                                    }}>
-                                                {capture.getSourceElement() ? 'Change Stream' : 'Select Stream'}
-                                            </button>
-                                        </div>
-                                    </Flex>
-                                )
-                            })
-
-                        }
-
-
-                        {/* Audio Stream Select */}
-                        <Flex direction="column" gap="2">
-                            <Text as="label" size="2" weight="bold" color={"blue"}>
-                                Audio Select
-                            </Text>
-                            <div className="StreamCaptureEditPopup__select-wrapper">
-                                {
-                                    audioCaptures.map((capture, index) => {
-                                        return (
-                                            <button color={"red"} className="StreamCaptureEditPopup__select"
-                                                    onClick={async () => {
-                                                        const audioStream = await navigator.mediaDevices.getUserMedia({
-                                                            audio: true,
-                                                            video: false
-                                                        });
-
-                                                        setAudioStream(index, audioStream);
-                                                    }}>
-                                                {capture.getMediaStream() ? 'Change Audio Stream' : 'Select Audio Stream'}
-                                            </button>
-                                        )
-                                    })
+                    <Flex direction="column" gap="2">
+                        {videoCaptures.map((capture, index) => (
+                            <SourceRow
+                                key={`video-${index}`}
+                                icon={<VideoIcon width={16} height={16} color="var(--gray-9)"/>}
+                                label={`Video Slot ${index + 1}`}
+                                detail={
+                                    capture.position
+                                        ? `(${capture.position.x}, ${capture.position.y}) · ${capture.size?.width}×${capture.size?.height}`
+                                        : 'No position set'
                                 }
-                                <ChevronDownIcon className="StreamCaptureEditPopup__select-icon"/>
-                            </div>
+                                hasSource={!!capture.getSourceElement()}
+                                buttonLabel={['Select', 'Change']}
+                                onSelect={() => selectScreen(index)}
+                            />
+                        ))}
+                    </Flex>
+                </Flex>
+
+                {/* Image Overlays */}
+                {imageCaptures.length > 0 && (
+                    <Flex direction="column" gap="3" mb="5">
+                        <Flex align="center" gap="2">
+                            <ImageIcon width={16} height={16} color="var(--accent-9)"/>
+                            <Heading size="3">Image Overlays</Heading>
+                        </Flex>
+                        <Flex direction="column" gap="2">
+                            {imageCaptures.map((capture, index) => (
+                                <SourceRow
+                                    key={`image-${index}`}
+                                    icon={<ImageIcon width={16} height={16} color="var(--gray-9)"/>}
+                                    label={`Image Slot ${index + 1}`}
+                                    detail={
+                                        capture.position
+                                            ? `(${capture.position.x}, ${capture.position.y})`
+                                            : 'No position set'
+                                    }
+                                    hasSource={!!capture.getSourceElement()}
+                                    buttonLabel={['Upload', 'Change']}
+                                    onSelect={() => selectImage(index)}
+                                />
+                            ))}
                         </Flex>
                     </Flex>
-                    <div className="StreamCaptureEditPopup__footer">
-                        <Dialog.Close asChild>
-                            <Button variant="soft" color="gray">
-                                Cancel
-                            </Button>
-                        </Dialog.Close>
-                        <Button onClick={handleConfirm} color="blue">
+                )}
+
+                {/* Audio Inputs */}
+                <Flex direction="column" gap="3" mb="5">
+                    <Flex align="center" gap="2">
+                        <SpeakerLoudIcon width={16} height={16} color="var(--accent-9)"/>
+                        <Heading size="3">Audio Inputs</Heading>
+                    </Flex>
+                    <Flex direction="column" gap="2">
+                        {audioCaptures.map((capture, index) => (
+                            <SourceRow
+                                key={`audio-${index}`}
+                                icon={<SpeakerLoudIcon width={16} height={16} color="var(--gray-9)"/>}
+                                label={`Audio Slot ${index + 1}`}
+                                detail={capture.getMediaStream() ? 'Microphone connected' : 'No input selected'}
+                                hasSource={!!capture.getMediaStream()}
+                                buttonLabel={['Select', 'Change']}
+                                onSelect={() => selectAudio(index)}
+                            />
+                        ))}
+                    </Flex>
+                </Flex>
+
+                <Separator size="4" mb="4"/>
+
+                <Flex justify="end" gap="2">
+                    <Dialog.Close>
+                        <Button variant="soft" color="gray">Cancel</Button>
+                    </Dialog.Close>
+                    <Dialog.Close>
+                        <Button>
+                            <CheckIcon/>
                             Confirm
                         </Button>
-                    </div>
-                </Dialog.Content>
-            </Dialog.Portal>
+                    </Dialog.Close>
+                </Flex>
+            </Dialog.Content>
         </Dialog.Root>
     );
 };

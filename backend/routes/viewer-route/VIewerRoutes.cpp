@@ -28,19 +28,11 @@ void RegisterViewerRoutes(ZvejysServer& server)
                                                        count = redis->incr("viewers:" + streamId);
                                                    }
 
-                                                   nlohmann::json initMsg = {
+                                                   nlohmann::json countMsg = {
                                                        {"type", "viewer_count"},
                                                        {"count", count},
                                                    };
-                                                   try
-                                                   {
-                                                       ws->SendText(initMsg.dump());
-                                                   }
-                                                   catch (...)
-                                                   {
-                                                       registry.Remove(streamId, ws);
-                                                       return;
-                                                   }
+                                                   registry.Broadcast(streamId, countMsg.dump());
 
                                                    std::cout << "[Viewer] Joined " << streamId
                                                        << " (" << count << " watching)" << std::endl;
@@ -104,6 +96,12 @@ void RegisterViewerRoutes(ZvejysServer& server)
                                                            redis->set("viewers:" + streamId, "0");
                                                            count = 0;
                                                        }
+
+                                                       nlohmann::json countMsg = {
+                                                           {"type", "viewer_count"},
+                                                           {"count", count},
+                                                       };
+                                                       registry.Broadcast(streamId, countMsg.dump());
 
                                                        std::cout << "[Viewer] Left " << streamId
                                                            << " (" << count << " watching)" << std::endl;

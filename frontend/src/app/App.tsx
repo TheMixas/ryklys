@@ -10,7 +10,7 @@ function App() {
     return (<Theme appearance={"dark"}>
             <AuthProvider>
                 <AppRouter/>
-                <ThemePanel/>
+                {/*<ThemePanel/>*/}
             </AuthProvider>
 
         </Theme>
