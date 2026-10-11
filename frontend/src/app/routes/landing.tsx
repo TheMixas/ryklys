@@ -119,7 +119,7 @@ const LandingRoute = () => {
                     <Button
                         size="3"
                         variant="outline"
-                        onClick={() => navigate('app/streams')}
+                        onClick={() => navigate(paths.app.streamBrowsing.getHref())}
                     >
                         <VideoIcon/>
                         Browse Streams

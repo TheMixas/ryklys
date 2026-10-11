@@ -3,6 +3,7 @@ import {
 } from '@radix-ui/themes';
 import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router';
+import {paths} from "@/config/paths.ts";
 import {
     PersonIcon, CountdownTimerIcon, VideoIcon,
     BarChartIcon, RocketIcon, ClockIcon
@@ -208,7 +209,7 @@ const MePage = () => {
                 <PersonIcon width={48} height={48} color="var(--gray-8)" />
                 <Heading size="5" color="gray">You're not logged in</Heading>
                 <Text size="2" color="gray">Log in to see your profile and stream history.</Text>
-                <Button mt="2" onClick={() => navigate('/login')}>
+                <Button mt="2" onClick={() => navigate(paths.auth.login.getHref())}>
                     Log in
                 </Button>
             </Flex>

@@ -3,6 +3,7 @@ import {
 } from '@radix-ui/themes';
 import {useRef, useState} from 'react';
 import {useNavigate} from 'react-router';
+import {paths} from "@/config/paths.ts";
 import {RocketIcon, EyeOpenIcon, EyeClosedIcon} from '@radix-ui/react-icons';
 import {env} from "@/config/env.ts";
 import {useAuth} from "@/hooks/useAuth.tsx";
@@ -165,7 +166,7 @@ const RegisterPage = () => {
                             cursor: 'pointer',
                             fontWeight: 600,
                         }}
-                        onClick={() => navigate('/login')}
+                        onClick={() => navigate(paths.auth.login.getHref())}
                     >
                         Log in
                     </Text>

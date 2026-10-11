@@ -301,7 +301,7 @@ const BrowseStreamsPage = () => {
                     <Text size="2" color="gray">Be the first to start streaming!</Text>
                     <Button
                         mt="2"
-                        onClick={() => navigate("/"+paths.app.streamerDashboard.path)}
+                        onClick={() => navigate(paths.app.streamerDashboard.getHref())}
                     >
                         <RocketIcon/>
                         Start Streaming
