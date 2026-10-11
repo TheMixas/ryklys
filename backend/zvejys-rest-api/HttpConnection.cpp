@@ -9,6 +9,7 @@
 #include <charconv>
 #include <cstdio>
 #include <sstream>
+#include <iostream>
 #include <stdexcept>
 #include <sys/socket.h>
 
@@ -147,31 +148,46 @@ void HttpConnection::HandleRead(HttpRequest request)
         //Handle regular http request
 
         HttpResponse response;
-        //Look up at the MapRouting
-        auto handler_it = GetServer()->GetRouteMap().find(request.path);
-        if (handler_it != GetServer()->GetRouteMap().end())
+        // Any exception thrown by a route handler (e.g. a failed DB query) becomes a 500
+        // for this one request instead of terminating the whole server.
+        try
         {
-            auto node = handler_it->second;
-            response = node.get()->HandleRequest(request);
-        }
-        else
-        {
-            // Try pattern routes
-            bool matched = false;
-            for (auto& [pattern, node] : GetServer()->GetPatternRoutes())
+            //Look up at the MapRouting
+            auto handler_it = GetServer()->GetRouteMap().find(request.path);
+            if (handler_it != GetServer()->GetRouteMap().end())
             {
-                std::unordered_map<std::string, std::string> params;
-                if (ZvejysServer::MatchPattern(pattern, request.path, params)
-                    && node->GetRouteMethod() == request.method)
-                {
-                    request.path_params = std::move(params);
-                    response = node->HandleRequest(request);
-                    matched = true;
-                    break;
-                }
+                auto node = handler_it->second;
+                response = node.get()->HandleRequest(request);
             }
-            if (!matched)
-                response = HttpResponse::NotFound("Route not found");
+            else
+            {
+                // Try pattern routes
+                bool matched = false;
+                for (auto& [pattern, node] : GetServer()->GetPatternRoutes())
+                {
+                    std::unordered_map<std::string, std::string> params;
+                    if (ZvejysServer::MatchPattern(pattern, request.path, params)
+                        && node->GetRouteMethod() == request.method)
+                    {
+                        request.path_params = std::move(params);
+                        response = node->HandleRequest(request);
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched)
+                    response = HttpResponse::NotFound("Route not found");
+            }
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "[HTTP] Handler for " << request.path << " threw: " << e.what() << std::endl;
+            response = HttpResponse::InternalServerError("Internal server error");
+        }
+        catch (...)
+        {
+            std::cerr << "[HTTP] Handler for " << request.path << " threw an unknown exception" << std::endl;
+            response = HttpResponse::InternalServerError("Internal server error");
         }
 
         //apply CORS headers if needed

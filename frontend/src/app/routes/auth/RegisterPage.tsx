@@ -1,7 +1,7 @@
 import {
     Heading, Text, Flex, Box, Button, TextField, Separator, IconButton
 } from '@radix-ui/themes';
-import {useState} from 'react';
+import {useRef, useState} from 'react';
 import {useNavigate} from 'react-router';
 import {RocketIcon, EyeOpenIcon, EyeClosedIcon} from '@radix-ui/react-icons';
 import {env} from "@/config/env.ts";
@@ -17,7 +17,13 @@ const RegisterPage = () => {
     const [loading, setLoading] = useState(false);
     const { refresh } = useAuth();
 
+    // A ref, not state: it updates instantly, so a second Enter/click that fires
+    // before React re-renders can't send a duplicate request.
+    const submittingRef = useRef(false);
+
     const handleRegister = async () => {
+        if (submittingRef.current) return;
+        submittingRef.current = true;
         setError(null);
         setLoading(true);
 
@@ -42,6 +48,7 @@ const RegisterPage = () => {
             console.error('[Register] Request failed:', e);
             setError('Could not reach server. Try again.');
         } finally {
+            submittingRef.current = false;
             setLoading(false);
         }
     };

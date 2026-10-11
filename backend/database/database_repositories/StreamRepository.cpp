@@ -1,7 +1,7 @@
 #include "StreamRepository.h"
 
 void StreamRepository::EndAll() const {
-    auto conn = Pool().connection();
+    auto conn = Pool().lease();
     pqxx::work txn(*conn);
 
     txn.exec(
@@ -10,12 +10,11 @@ void StreamRepository::EndAll() const {
     );
 
     txn.commit();
-    Pool().freeConnection(conn);
 
     std::cout << "[Startup] Cleaned up orphaned streams" << std::endl;
 }
 Stream StreamRepository::Create(int userId, const std::string& streamId, const std::string& title) const {
-    auto conn = Pool().connection();
+    auto conn = Pool().lease();
     pqxx::work txn(*conn);
 
     auto result = txn.exec(
@@ -26,7 +25,6 @@ Stream StreamRepository::Create(int userId, const std::string& streamId, const s
     );
 
     txn.commit();
-    Pool().freeConnection(conn);
 
     return Stream{
         .id = result[0]["id"].as<std::string>(),
@@ -38,7 +36,7 @@ Stream StreamRepository::Create(int userId, const std::string& streamId, const s
 }
 
 void StreamRepository::SetEnded(const std::string& streamId) const {
-    auto conn = Pool().connection();
+    auto conn = Pool().lease();
     pqxx::work txn(*conn);
 
     txn.exec(
@@ -48,11 +46,10 @@ void StreamRepository::SetEnded(const std::string& streamId) const {
     );
 
     txn.commit();
-    Pool().freeConnection(conn);
 }
 
 std::optional<Stream> StreamRepository::FindById(const std::string& streamId) const {
-    auto conn = Pool().connection();
+    auto conn = Pool().lease();
     pqxx::work txn(*conn);
 
     auto result = txn.exec(
@@ -62,7 +59,6 @@ std::optional<Stream> StreamRepository::FindById(const std::string& streamId) co
     );
 
     txn.commit();
-    Pool().freeConnection(conn);
 
     if (result.empty()) return std::nullopt;
 
@@ -79,7 +75,7 @@ std::optional<Stream> StreamRepository::FindById(const std::string& streamId) co
 }
 
 std::vector<Stream> StreamRepository::GetActive() const {
-    auto conn = Pool().connection();
+    auto conn = Pool().lease();
     pqxx::work txn(*conn);
 
     auto result = txn.exec(
@@ -90,7 +86,6 @@ std::vector<Stream> StreamRepository::GetActive() const {
     );
 
     txn.commit();
-    Pool().freeConnection(conn);
 
     std::vector<Stream> streams;
     for (const auto& row : result) {
@@ -107,21 +102,20 @@ std::vector<Stream> StreamRepository::GetActive() const {
     return streams;
 }
 std::vector<Stream> StreamRepository::GetHistoryByUserId(int userId) {
-    auto conn = Pool().connection();
+    auto conn = Pool().lease();
     pqxx::work txn(*conn);
     auto result = txn.exec_params(
-        "SELECT stream_id, user_id, title, status, started_at, ended_at "
+        "SELECT id, user_id, title, status, started_at, ended_at "
         "FROM streams WHERE user_id = $1 ORDER BY started_at DESC LIMIT 50",
         userId
     );
     txn.commit();
-    Pool().freeConnection(conn);
 
 
     std::vector<Stream> streams;
     for (const auto& row : result) {
         Stream s;
-        s.id= row["stream_id"].as<std::string>();
+        s.id= row["id"].as<std::string>();
         s.user_id= row["user_id"].as<int>();
         s.title = row["title"].as<std::string>("");
         s.status = row["status"].as<std::string>();

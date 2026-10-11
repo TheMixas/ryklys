@@ -39,6 +39,18 @@ std::shared_ptr<pqxx::connection> PGPool::connection() {
     auto conn_ = m_pool.front();
     // immediately pop as we will use it now
     m_pool.pop();
+    lock_.unlock();
+
+    // A connection can die (e.g. Postgres restarted). Replace it with a fresh one.
+    if (!conn_->is_open()) {
+        try {
+            conn_ = std::make_shared<pqxx::connection>(buildConnectionString());
+            std::cout << "[PGPool] Replaced a dead connection" << std::endl;
+        } catch (...) {
+            freeConnection(conn_); // keep the pool size constant, then report the error
+            throw;
+        }
+    }
 
     return conn_;
 }

@@ -79,7 +79,18 @@ void RegisterUserRoutes(ZvejysServer& server)
         std::cout << "[REGISTER] Hashing password..." << std::endl;
         std::string hashed = password::Hash(*password);
         std::cout << "[REGISTER] Creating user in DB..." << std::endl;
-        User newUser = userRepo.Create(username.value(), email.value(), hashed);
+        User newUser;
+        try
+        {
+            newUser = userRepo.Create(username.value(), email.value(), hashed);
+        }
+        catch (const pqxx::unique_violation&)
+        {
+            // Two requests can both pass the checks above before either inserts.
+            // The UNIQUE constraint in Postgres is the real guard.
+            std::cout << "[REGISTER] FAIL: unique violation (concurrent duplicate)" << std::endl;
+            return HttpResponse::Conflict("Username or email is already taken");
+        }
         std::cout << "[REGISTER] SUCCESS: Created user ID=" << newUser.id << " username=" << *username << std::endl;
 
         HttpResponse response = HttpResponse::Created("User registered successfully");

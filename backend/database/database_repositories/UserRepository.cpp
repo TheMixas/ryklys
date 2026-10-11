@@ -8,7 +8,7 @@
 /// this will hang .
 User UserRepository::Create(const std::string &username, const std::string &email,
                             const std::string &password_hash) const {
-    auto conn = Pool().connection();
+    auto conn = Pool().lease();
     pqxx::work txn(*conn);
 
     auto result = txn.exec(
@@ -24,7 +24,6 @@ User UserRepository::Create(const std::string &username, const std::string &emai
     txn.commit();
 
 
-    Pool().freeConnection(conn);
     return User{
         .id = id,
         .username = username_,
@@ -33,7 +32,7 @@ User UserRepository::Create(const std::string &username, const std::string &emai
 }
 
 bool UserRepository::IsUsernameTaken(const std::string &username) const {
-    auto conn = Pool().connection();
+    auto conn = Pool().lease();
     pqxx::work txn(*conn);
     auto result = txn.exec(
         "SELECT COUNT(*) FROM users WHERE username = $1"
@@ -43,12 +42,11 @@ bool UserRepository::IsUsernameTaken(const std::string &username) const {
     int count = result[0][0].as<int>();
 
     txn.commit();
-    Pool().freeConnection(conn);
     return count > 0;
 }
 
 bool UserRepository::IsEmailTaken(const std::string &email) const {
-    auto conn = Pool().connection();
+    auto conn = Pool().lease();
     pqxx::work txn(*conn);
     auto result = txn.exec(
         "SELECT COUNT(*) FROM users WHERE email = $1"
@@ -58,12 +56,11 @@ bool UserRepository::IsEmailTaken(const std::string &email) const {
     int count = result[0][0].as<int>();
 
     txn.commit();
-    Pool().freeConnection(conn);
     return count > 0;
 }
 
 std::optional<User> UserRepository::FindByUsername(const std::string &username) const {
-    auto conn = Pool().connection();
+    auto conn = Pool().lease();
     pqxx::work txn(*conn);
     auto result = txn.exec(
         "SELECT id, username, email, password_hash FROM users WHERE username = $1"
@@ -71,7 +68,6 @@ std::optional<User> UserRepository::FindByUsername(const std::string &username) 
     );
 
     txn.commit();
-    Pool().freeConnection(conn);
 
     if (result.empty()) {
         return std::nullopt;

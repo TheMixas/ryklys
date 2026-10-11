@@ -25,7 +25,7 @@ public:
                        const std::string& username,
                        const std::string& message) const
     {
-        auto conn = Pool().connection();
+        auto conn = Pool().lease();
         pqxx::work txn(*conn);
 
         auto result = txn.exec(
@@ -36,7 +36,6 @@ public:
         );
 
         txn.commit();
-        Pool().freeConnection(conn);
 
         return ChatMessage{
             .id = result[0]["id"].as<int64_t>(),
@@ -50,7 +49,7 @@ public:
 
     std::vector<ChatMessage> GetRecent(const std::string& streamId, int limit = 50) const
     {
-        auto conn = Pool().connection();
+        auto conn = Pool().lease();
         pqxx::work txn(*conn);
 
         auto result = txn.exec(
@@ -63,7 +62,6 @@ public:
         );
 
         txn.commit();
-        Pool().freeConnection(conn);
 
         std::vector<ChatMessage> messages;
         messages.reserve(result.size());
