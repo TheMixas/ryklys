@@ -9,6 +9,7 @@ import {
     generateVertexShader, updateTexture
 } from "@/features/stream/utils/StreamHelpers.ts";
 import {AudioCapture} from "@/features/stream/models/AudioCapture.ts";
+import {env} from "@/config/env.ts";
 
 interface UseStreamOptions {
     sceneConfig?: SceneConfig;
@@ -97,7 +98,7 @@ export function useLiveStream(options: UseStreamOptions): UseStreamReturn {
 
         // 1. Establish the Signaling WebSocket
         // Connect to your Zvejys backend WebSockets route
-        const wsUrl = `ws://localhost:8080/sig`;
+        const wsUrl = `${env.API_URL.replace(/^http/, 'ws')}/sig`;
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
         ws.onopen = async () => {

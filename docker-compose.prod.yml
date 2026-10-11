@@ -1,0 +1,37 @@
+# Production overrides for running Ryklys on a single Linux VM.
+#
+#   echo "SITE_DOMAIN=your-name.region.cloudapp.azure.com" > .env
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# - The app container uses host networking so WebRTC can use the VM's real
+#   UDP ports (10000-20000) and Caddy can bind 80/443 for automatic HTTPS.
+# - Postgres and Redis are only published on localhost.
+services:
+  app:
+    network_mode: host
+    ports: !reset []
+    restart: unless-stopped
+    environment:
+      SERVER_HOST: "127.0.0.1"
+      STREAM_POCKET_SERVER_HOST: "127.0.0.1"
+      STREAM_POCKET_UPLOAD_URL: "http://127.0.0.1:7070"
+      DB_HOST: "127.0.0.1"
+      DB_PORT: "5433"
+      REDIS_HOST: "127.0.0.1"
+      SITE_DOMAIN: ${SITE_DOMAIN:?Set SITE_DOMAIN in .env next to docker-compose.yml}
+    volumes:
+      - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - caddy_data:/root/.local/share/caddy
+
+  db:
+    restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:5433:5432"
+
+  redis:
+    restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:6379:6379"
+
+volumes:
+  caddy_data:

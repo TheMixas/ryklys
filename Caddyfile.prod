@@ -1,0 +1,33 @@
+{
+    admin off
+}
+
+# Caddy gets a Let's Encrypt certificate for this domain automatically
+# (needs ports 80 and 443 open). SITE_DOMAIN comes from docker-compose.prod.yml.
+{$SITE_DOMAIN} {
+    # WebSocket routes
+    handle /sig* {
+        reverse_proxy 127.0.0.1:3001
+    }
+
+    handle /ws* {
+        reverse_proxy 127.0.0.1:3001
+    }
+
+    # StreamPocket segments — BEFORE the general /api/* catch-all
+    handle /api/segments/* {
+        reverse_proxy 127.0.0.1:7070
+    }
+
+    # API routes
+    handle /api/* {
+        reverse_proxy 127.0.0.1:3001
+    }
+
+    # Frontend — serve static files
+    handle {
+        root * /srv/frontend
+        try_files {path} /index.html
+        file_server
+    }
+}
