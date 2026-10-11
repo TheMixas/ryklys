@@ -5,12 +5,16 @@ import type {User} from "@/types/api.ts";
 const AuthContext = createContext<{
     authenticated: boolean;
     user: User | null;
+    // true until the first /api/users/me check finishes. Before that we don't
+    // know yet whether the cookie is valid, so pages must not treat it as "logged out".
+    loading: boolean;
     refresh: () => Promise<void>;
-}>({ authenticated: false, user: null, refresh: async () => {} });
+}>({ authenticated: false, user: null, loading: true, refresh: async () => {} });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [authenticated, setAuthenticated] = useState<boolean>(false);
     const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState<boolean>(true);
 
     const refresh = useCallback(async () => {
         try {
@@ -26,6 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {
             setAuthenticated(false);
             setUser(null);
+        } finally {
+            setLoading(false);
         }
     }, []);
 
@@ -34,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [refresh]);
 
     return (
-        <AuthContext.Provider value={{ authenticated, user, refresh }}>
+        <AuthContext.Provider value={{ authenticated, user, loading, refresh }}>
             {children}
         </AuthContext.Provider>
     );

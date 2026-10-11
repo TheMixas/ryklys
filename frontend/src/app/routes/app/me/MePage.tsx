@@ -170,7 +170,7 @@ const SkeletonRow = () => (
 
 const MePage = () => {
     const navigate = useNavigate();
-    const {authenticated, user} = useAuth();
+    const {authenticated, user, loading: authLoading} = useAuth();
     const [streams, setStreams] = useState<StreamHistory[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -195,6 +195,11 @@ const MePage = () => {
 
         fetchHistory();
     }, [authenticated]);
+
+    // Session check still in progress — avoid flashing "not logged in"
+    if (authLoading) {
+        return null;
+    }
 
     // Not logged in
     if (!authenticated) {

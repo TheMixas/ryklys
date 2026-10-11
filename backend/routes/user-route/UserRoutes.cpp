@@ -11,6 +11,10 @@
 #include "./../../zvejys-rest-api/utils/JsonWebToken.h"
 
 
+// How long a login lasts. The JWT expiry and the cookie lifetime must match:
+// a cookie that outlives its token just sends an expired token.
+static constexpr int SESSION_SECONDS = 7 * 24 * 60 * 60; // 7 days
+
 void RegisterUserRoutes(ZvejysServer& server)
 {
     server.RegisterRoute(HttpMethod::POST, "/api/users/register", [](const HttpRequest& request) -> HttpResponse
@@ -102,9 +106,9 @@ void RegisterUserRoutes(ZvejysServer& server)
             return HttpResponse::InternalServerError("JWT secret not configured");
         }
         std::cout << "[REGISTER]JWT_SECRET found (length=" << jwtSecret->length() << ")" << std::endl;
-        std::string token = jwt::Create(newUser.id, newUser.username, jwtSecret.value());
+        std::string token = jwt::Create(newUser.id, newUser.username, jwtSecret.value(), SESSION_SECONDS);
         std::string cookie = std::string("token=") + token +
-            "; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=360000";
+            "; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=" + std::to_string(SESSION_SECONDS);
         response.headers["Set-Cookie"] = cookie;
         return response;
     });
@@ -166,12 +170,12 @@ void RegisterUserRoutes(ZvejysServer& server)
         std::cout << "[LOGIN] JWT_SECRET found (length=" << jwtSecret->length() << ")" << std::endl;
 
         std::cout << "[LOGIN] Creating JWT token..." << std::endl;
-        std::string token = jwt::Create(loginUser->id, loginUser->username, jwtSecret.value());
+        std::string token = jwt::Create(loginUser->id, loginUser->username, jwtSecret.value(), SESSION_SECONDS);
         std::cout << "[LOGIN] Token created (length=" << token.length() << ")" << std::endl;
 
         HttpResponse response = HttpResponse::Ok("Login successful");
         std::string cookie = std::string("token=") + token +
-            "; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=360000";
+            "; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=" + std::to_string(SESSION_SECONDS);
         response.headers["Set-Cookie"] = cookie;
         std::cout << "[LOGIN] SUCCESS: Set-Cookie header set for user '" << *username << "'" << std::endl;
         std::cout << "[LOGIN] Cookie value: " << cookie << std::endl;
