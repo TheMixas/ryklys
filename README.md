@@ -1,6 +1,11 @@
 # Ryklys
 
-**A live streaming platform built from scratch - no frameworks.**
+**A live streaming platform with a C++ backend written from scratch. Custom HTTP & WebSockets implementation.**
+
+### 🔴 [Live demo -> ryklys-gustas.spaincentral.cloudapp.azure.com](https://ryklys-gustas.spaincentral.cloudapp.azure.com)
+
+**Try it in 30 seconds:** register (password: 8+ characters with upper case, lower case and a digit) -> **Go Live** -> open your stream in a second tab or on your phone.
+*Streaming works best in Chrome; watching works in any browser.*
 
 ![Ryklys Demo](docs/demo.gif)
 
