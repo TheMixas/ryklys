@@ -18,36 +18,7 @@ The entire backend — HTTP server, WebSocket handler, connection pool, stream p
 The custom HTTP server parses requests, routes them, handles CORS, manages cookies, and upgrades WebSocket connections — all custom. The connection pool, thread pool, JWT auth, and service locator are all hand-rolled.
 
 ## Architecture
-
-```
-Browser (Streamer)                        Browser (Viewer)
-     │                                         ▲
-     │ WebRTC                                  │ HLS
-     ▼                                         │
-┌─────────────────────────────────────────────────────┐
-│                      Caddy                          │
-│              (reverse proxy / TLS)                  │
-└────────────┬────────────────────────┬───────────────┘
-             │                        │
-     ┌───────▼───────┐       ┌───────▼───────┐
-     │   Backend A   │       │   Backend B   │
-     │  (C++ / :3001)│       │  (C++ / :3002)│
-     └───┬───┬───┬───┘       └───┬───┬───┬───┘
-         │   │   │               │   │   │
-         │   │   └──────┬────────┘   │   │
-         │   │          │            │   │
-    ┌────▼┐ ┌▼─────┐ ┌─▼──────┐ ┌──▼─┐ │
-    │FFmpeg│ │Redis │ │PostgreSQL│ │FFmpeg│
-    │     │ │Pub/Sub│ │        │ │     │ │
-    └──┬──┘ └──────┘ └────────┘ └──┬──┘ │
-       │                           │     │
-       ▼                           ▼     │
-  ┌──────────────────────────────────┐   │
-  │         StreamPocket             │◄──┘
-  │   (HLS segment storage / :7070) │
-  └──────────────────────────────────┘
-```
-
+![Arch](docs/d.png)
 ## Tech Stack
 
 **All built from scratch (no frameworks):**
