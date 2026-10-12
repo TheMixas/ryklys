@@ -154,18 +154,11 @@ ryklys/
 
 ## Roadmap
 
-- [ ] HTTPS everywhere (Caddy + Let's Encrypt)
+- [x] HTTPS everywhere (Caddy + Let's Encrypt)
+- [x] Crash recovery and process supervision
 - [ ] FFmpeg process watchdog
-- [ ] Stream thumbnails for the browse page
-- [ ] VOD — keep segments after stream ends
-- [ ] Follow system and channel pages
-- [ ] Stream categories and tags
-- [ ] Clip system
-- [ ] Adaptive bitrate (multiple quality options)
-- [ ] CDN for segment delivery at scale
-
-## Author
-
-**TheMixas** — [github.com/TheMixas](https://github.com/TheMixas)
-
-Built as a deep dive into systems programming, networking, and real-time media delivery.
+- [ ] Faster streaming from Firefox (software H.264 encoder path)
+- [ ] Multi-node load-balancing config (the backend is already stateless, with chat going through Redis)
+- [ ] Stream thumbnails on the browse page
+- [ ] VODs: keep segments after a stream ends
+- [ ] Adaptive bitrate (multiple quality levels)
