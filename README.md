@@ -28,28 +28,7 @@ The core server is hand-written in C++20 on raw Linux sockets. Where I used a li
 
 ## Architecture
 ![Arch](docs/d.png)
-## Tech Stack
-
-**All built from scratch (no frameworks):**
-- Custom HTTP/1.1 server with epoll (edge-triggered) and thread pool
-- WebSocket protocol implementation (handshake, framing, masking)
-- Connection pooling for PostgreSQL and Redis
-- JWT authentication (create, verify, cookie management)
-- CORS middleware
-- Service locator pattern for dependency injection
-- StreamPocket — a custom HLS segment storage and delivery server
-
-**Infrastructure:**
-- C++20 backend on Linux
-- React + TypeScript + Vite frontend
-- PostgreSQL for users and stream metadata
-- Redis for pub/sub chat, viewer tracking, and multi-node coordination
-- FFmpeg for WebRTC → HLS transcoding
-- Caddy for reverse proxy and load balancing
-- Docker + Docker Compose
-
 ## Features
-
 - **Browser-native streaming** — go live with your webcam or screen share, no software to install
 - **Real-time HLS delivery** — sub-5-second latency from streamer to viewer
 - **Live chat** — Redis pub/sub powered, works across multiple backend nodes
