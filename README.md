@@ -11,11 +11,20 @@
 
 Stream directly from your browser to an audience in real time. No OBS, no downloads. Just open Ryklys, go live, and your viewers are watching within seconds.
 
-## What makes this different
+## What's built from scratch
 
-The entire backend — HTTP server, WebSocket handler, connection pool, stream pipeline — is **written from scratch in C++** using raw Linux sockets and epoll. The frontend captures your camera/screen via WebRTC, sends it to the backend, which pipes it through FFmpeg into HLS segments and delivers them to viewers. Chat runs over Redis Pub/Sub across multiple nodes.
+The core server is hand-written in C++20 on raw Linux sockets. Where I used a library, it's listed below.
 
-The custom HTTP server parses requests, routes them, handles CORS, manages cookies, and upgrades WebSocket connections — all custom. The connection pool, thread pool, JWT auth, and service locator are all hand-rolled.
+| Built from scratch | Libraries used |
+|---|---|
+| HTTP/1.1 server: `epoll` (edge-triggered) event loop, incremental request parsing, keep-alive and pipelining | **libdatachannel**: WebRTC transport |
+| WebSocket protocol: upgrade handshake, frame parsing, masking | **libpqxx**: PostgreSQL client |
+| SHA-1, SHA-256, HMAC-SHA256, Base64 (used for WebSocket handshakes and JWTs) | **FFmpeg**: H.264 encoding and HLS packaging |
+| JWT auth: signing, verification, expiry, HttpOnly cookie sessions | **nlohmann/json**: JSON parsing |
+| Redis client speaking the RESP protocol directly over a socket, with a connection pool | Radix tree (route lookup) and thread pool (`dp::thread_pool`) |
+| PostgreSQL connection pool with RAII leases and automatic reconnect | **hls.js**: HLS playback in the browser |
+| CORS middleware, routing with path parameters, service locator for dependency injection | **Caddy**: TLS and reverse proxy |
+| **StreamPocket**: a separate C++ server that stores and serves HLS segments | |
 
 ## Architecture
 ![Arch](docs/d.png)
