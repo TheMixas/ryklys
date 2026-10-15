@@ -64,7 +64,7 @@ static std::optional<AuthenticatedUser> ExtractAuthenticatedUserFromRequest(cons
     auto cookieIt = request.headers.find("Cookie");
     if (cookieIt != request.headers.end())
     {
-        std::cout << "[AUTH] Cookie header found: " << cookieIt->second << std::endl;
+        std::cout << "[AUTH] Cookie header found" << std::endl;
         const std::string& cookie = cookieIt->second;
         auto pos = cookie.find("token=");
         if (pos != std::string::npos)
@@ -126,6 +126,14 @@ static std::optional<AuthenticatedUser> ExtractAuthenticatedUserFromRequest(cons
     //load local path + .env
     auto& env = EnvConfig::Instance();
     env.Load(std::string(PROJECT_ROOT) + "/.env");
+
+    // QUIET_LOGS=1 turns off the per-request debug output on stdout (errors on
+    // stderr still show). Writing and flushing a log line for every request is
+    // slower than handling the request itself, so benchmarks run with this on.
+    if (env.Get("QUIET_LOGS", "0") == "1")
+    {
+        std::cout.setstate(std::ios::failbit);
+    }
 
     static PGPool databaseConnectionPool;
     static UserRepository userRepository(databaseConnectionPool);

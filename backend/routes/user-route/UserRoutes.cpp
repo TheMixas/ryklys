@@ -20,12 +20,6 @@ void RegisterUserRoutes(ZvejysServer& server)
     server.RegisterRoute(HttpMethod::POST, "/api/users/register", [](const HttpRequest& request) -> HttpResponse
     {
         std::cout << "[REGISTER] === Registration request received ===" << std::endl;
-        std::cout << "[REGISTER] Headers:" << std::endl;
-        for (const auto& [key, value] : request.headers)
-        {
-            std::cout << "[REGISTER]   " << key << ": " << value << std::endl;
-        }
-        std::cout << "[REGISTER] Body: " << std::string(request.body.begin(), request.body.end()) << std::endl;
         std::optional<std::string> username = request.BodyParam("username");
         std::optional<std::string> email = request.BodyParam("email");
         std::optional<std::string> password = request.BodyParam("password");
@@ -116,12 +110,6 @@ void RegisterUserRoutes(ZvejysServer& server)
     server.RegisterRoute(HttpMethod::POST, "/api/users/login", [](const HttpRequest& request) -> HttpResponse
     {
         std::cout << "[LOGIN] === Login request received ===" << std::endl;
-        std::cout << "[LOGIN] Headers:" << std::endl;
-        for (const auto& [key, value] : request.headers)
-        {
-            std::cout << "[LOGIN]   " << key << ": " << value << std::endl;
-        }
-        std::cout << "[REGISTER] Body: " << std::string(request.body.begin(), request.body.end()) << std::endl;
         std::optional<std::string> username = request.BodyParam("username");
         std::optional<std::string> password = request.BodyParam("password");
 
@@ -178,7 +166,6 @@ void RegisterUserRoutes(ZvejysServer& server)
             "; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=" + std::to_string(SESSION_SECONDS);
         response.headers["Set-Cookie"] = cookie;
         std::cout << "[LOGIN] SUCCESS: Set-Cookie header set for user '" << *username << "'" << std::endl;
-        std::cout << "[LOGIN] Cookie value: " << cookie << std::endl;
 
         return response;
     });
@@ -192,11 +179,6 @@ void RegisterUserRoutes(ZvejysServer& server)
                                          const AuthenticatedUser& authUser) -> HttpResponse
                                       {
                                           std::cout << "[ME] === /api/users/me request received ===" << std::endl;
-                                          std::cout << "[ME] Headers:" << std::endl;
-                                          for (const auto& [key, value] : request.headers)
-                                          {
-                                              std::cout << "[ME]   " << key << ": " << value << std::endl;
-                                          }
                                           std::cout << "[ME] Authenticated user: ID=" << authUser.id
                                               << " username=" << authUser.username << std::endl;
 

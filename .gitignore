@@ -24,6 +24,7 @@ backend/libpqxx/build/
 # Frontend (React/Vite)
 # ========================
 frontend/node_modules/
+bench/node_modules/
 frontend/dist/
 frontend/.vite/
 

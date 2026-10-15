@@ -78,7 +78,7 @@ psql -U postgres -d postgres -f backend/init.sql
 
 ```bash
 cd backend
-cp .env.example .env          # edit with your DB/Redis connection details
+cp env.example .env           # edit with your DB/Redis connection details
 
 cmake -B cmake-build-debug
 cmake --build cmake-build-debug
@@ -133,7 +133,7 @@ ryklys/
 │   ├── pg-connection-pool/         # Custom PostgreSQL connection pool
 │   ├── include/                    # Thread pool, external headers
 │   ├── init.sql                    # Database schema
-│   ├── .env.example                # Environment variable template
+│   ├── env.example                 # Environment variable template
 │   ├── CMakeLists.txt
 │   ├── Caddyfile                   # Local dev reverse proxy config
 │   └── Dockerfile
