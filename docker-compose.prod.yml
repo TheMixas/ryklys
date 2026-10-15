@@ -11,6 +11,11 @@ services:
     network_mode: host
     ports: !reset []
     restart: unless-stopped
+    # Every viewer holds an open socket; Docker's default limit is 1024 files.
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     environment:
       SERVER_HOST: "127.0.0.1"
       STREAM_POCKET_SERVER_HOST: "127.0.0.1"

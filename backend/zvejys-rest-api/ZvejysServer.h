@@ -16,6 +16,7 @@
 
 #include <sys/types.h>
 #include <memory>
+#include <mutex>
 #include <unordered_set>
 #include <variant>
 
@@ -136,15 +137,18 @@ public:
     // Called by HttpConnection after it sends the 101 handshake
     void UpgradeToWebSocket(int fd, int epollFD, HttpRequest http_request)
     {
-        connections.erase(fd);
-
         auto ws_conn = std::make_shared<WebSocketConnection>(fd, this, epollFD, std::move(http_request));
 
-        // Store and register with epoll FIRST, before any handler logic
-        ws_connections_[fd] = ws_conn;
+        // Store and register with epoll FIRST, before any handler logic.
+        // Upgrades run on worker threads, so the maps need the lock.
+        {
+            std::lock_guard<std::mutex> lock(connections_mu_);
+            connections.erase(fd);
+            ws_connections_[fd] = ws_conn;
+        }
 
         epoll_event ev{};
-        ev.data.ptr = ws_connections_[fd].get();
+        ev.data.ptr = ws_conn.get();
         ev.events = EPOLLIN | EPOLLET;
         epoll_ctl(epollFD, EPOLL_CTL_MOD, fd, &ev);
 
@@ -215,6 +219,9 @@ private:
     std::unordered_map<std::string, AuthenticatedWsHandlerSetup> auth_ws_routes_;
     std::unordered_map<int, std::shared_ptr<HttpConnection>> connections;
     std::unordered_map<int, std::shared_ptr<WebSocketConnection>> ws_connections_;
+    // Guards connections and ws_connections_: the epoll thread adds to them while
+    // worker threads upgrade and close connections at the same time.
+    std::mutex connections_mu_;
 
     Cors cors;
 

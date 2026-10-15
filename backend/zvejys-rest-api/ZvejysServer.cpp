@@ -90,12 +90,16 @@ int ZvejysServer::HandleEpollNewConnection(int epollFD, epoll_event event) {
     struct epoll_event client_event;
     auto conn = std::make_shared<HttpConnection>(client_socket_fd, this, epollFD);
     client_event.data.ptr = conn.get();
-    connections[client_socket_fd] = std::move(conn);
+    {
+        std::lock_guard<std::mutex> lock(connections_mu_);
+        connections[client_socket_fd] = std::move(conn);
+    }
     client_event.events = EPOLLIN | EPOLLET; // Edge-triggered read events
 
     if (epoll_ctl(epollFD, EPOLL_CTL_ADD, client_socket_fd, &client_event) < 0) {
         perror("Failed to add client socket to epoll");
         close(client_socket_fd);
+        std::lock_guard<std::mutex> lock(connections_mu_);
         connections.erase(client_socket_fd);
     }
     return client_socket_fd;
@@ -103,9 +107,11 @@ int ZvejysServer::HandleEpollNewConnection(int epollFD, epoll_event event) {
 
 int ZvejysServer::HandleClientClosedConnection(epoll_event event) {
     // Handle disconnection or error
-    auto *conn = static_cast<HttpConnection *>(event.data.ptr);
+    // data.ptr can be an HttpConnection or a WebSocketConnection
+    auto *conn = static_cast<Connection *>(event.data.ptr);
     int fd = conn->GetSocketFD();
     close(fd);
+    std::lock_guard<std::mutex> lock(connections_mu_);
     connections.erase(fd);
     return 1;
 }
