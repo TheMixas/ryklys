@@ -209,8 +209,8 @@ static std::optional<AuthenticatedUser> ExtractAuthenticatedUserFromRequest(cons
 
             if (event.data.fd == httpServerSocketFD)
             {
-                // new connection
-                httpServer.HandleEpollNewConnection(epoll_fd, event);
+                // new connection(s): edge-triggered, so drain the whole accept queue
+                while (httpServer.HandleEpollNewConnection(epoll_fd, event) >= 0) {}
                 std::cout << "I just accepted a new connection" << std::endl;
             }
             else

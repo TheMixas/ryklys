@@ -226,7 +226,8 @@ void HttpConnection::OnWritable(int epollFD)
         header += "Connection: keep-alive\r\n";
         header += "\r\n";
 
-        // Send headers and body
+        // Send headers and body in one write
+        header.append(response.body.data(), response.body.size());
         ssize_t sent = send(GetSocketFD(), header.data(), header.size(), MSG_NOSIGNAL);
         if (sent == -1)
         {
@@ -241,7 +242,6 @@ void HttpConnection::OnWritable(int epollFD)
                 return;
             }
         }
-        send(GetSocketFD(), response.body.data(), response.body.size(), MSG_NOSIGNAL);
         response_queue_.pop();
     }
 

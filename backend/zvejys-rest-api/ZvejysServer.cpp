@@ -7,6 +7,8 @@
 #include <iostream>
 #include <stdexcept>
 #include <utility>
+#include <cerrno>
+#include <netinet/tcp.h>
 
 #include "HttpConnection.h"
 
@@ -77,9 +79,12 @@ void ZvejysServer::RegisterAuthenticatedRoute(HttpMethod httpMethod,const std::s
 int ZvejysServer::HandleEpollNewConnection(int epollFD, epoll_event event) {
     int client_socket_fd = accept4(event.data.fd, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
     if (client_socket_fd < 0) {
-        perror("Failed to accept new connection");
+        if (errno != EAGAIN && errno != EWOULDBLOCK) perror("Failed to accept new connection");
         return -1;
     }
+
+    int one = 1;
+    setsockopt(client_socket_fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
 
     // Register the new client socket with epoll
     struct epoll_event client_event;
