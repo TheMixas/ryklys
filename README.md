@@ -38,6 +38,17 @@ The core server is hand-written in C++20 on raw Linux sockets. Where I used a li
 - **Stream history** — browse your past streams with duration and metadata
 - **Stream browsing** — discover who's live and jump into any stream
 
+## Performance
+
+Measured on an Intel Core i9-14900HX with wrk and a custom WebSocket load script. Setup and commands are in [BENCHMARKS.md](BENCHMARKS.md).
+
+| Test | Result |
+|---|---|
+| HTTP requests, server only (`/api/health`) | **126k req/s**, 3.3 ms p99 |
+| HTTP requests with a PostgreSQL query (`/api/streams/live`) | **45k req/s**, 19 ms p99 |
+| Chat message to 1,000 viewers (via PostgreSQL + Redis pub/sub) | **20 ms p99**, 100% delivered |
+| Chat message to 5,000 viewers | **43 ms p99**, 100% delivered |
+
 ## Getting Started
 
 ### Docker (recommended)
